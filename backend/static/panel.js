@@ -280,6 +280,10 @@ function setReadout(id, text, unit) {
 function setLane(n, e) {
   const card = $(`readout-c${n}`);
   const gauge = $(`gauge${n}`);
+  // Con agua confirmada la barra pasa a celeste: lo que se mide es agua.
+  const agua = Boolean(e && e.agua_activa);
+  if (agua) { gauge.parentElement.dataset.agua = ""; card.dataset.agua = ""; }
+  else { delete gauge.parentElement.dataset.agua; delete card.dataset.agua; }
   if (!e) {
     setReadout(`carril${n}`, "—");
     $(`valido${n}`).textContent = "Sin medición";
@@ -303,12 +307,12 @@ function setLane(n, e) {
     return;
   }
   setReadout(`carril${n}`, num1(v), "cm");
-  $(`valido${n}`).textContent = v <= 5
-    ? "Libre"
-    : v > 100 ? "Obstrucción alta" : "Obstruido";
+  $(`valido${n}`).textContent = agua
+    ? (v <= 5 ? "Agua detectada" : "Nivel de agua")
+    : v <= 5 ? "Libre" : v > 100 ? "Obstrucción alta" : "Obstruido";
   // Escala 0-400 cm: la altura de montaje del sensor sobre la calzada.
   gauge.style.transform = `scaleX(${Math.min(v / 400, 1)})`;
-  gauge.dataset.level = v <= 5 ? "ok" : "warn";
+  gauge.dataset.level = agua ? "agua" : v <= 5 ? "ok" : "warn";
   delete card.dataset.sev;
 }
 

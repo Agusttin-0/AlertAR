@@ -36,6 +36,8 @@
   --crit: #ef4f4f;
   --crit-bg: rgba(239, 79, 79, .12);
   --crit-border: rgba(239, 79, 79, .50);
+  --water: #4fc3f7;
+  --water-bg: rgba(79, 195, 247, .16);
   --unknown: #7d8792;
   --unknown-bg: rgba(125, 135, 146, .10);
   --unknown-border: rgba(125, 135, 146, .30);
@@ -474,7 +476,27 @@ input:focus, select:focus { outline: none; border-color: var(--accent); box-shad
 .gauge-fill[data-level="ok"] { background: var(--ok); }
 .gauge-fill[data-level="warn"] { background: var(--warn); }
 .gauge-fill[data-level="crit"] { background: var(--crit); }
-.gauge-mark { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--bg); }
+.gauge-mark { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--bg); z-index: 1; }
+
+/* Agua confirmada: lo que miden los ultrasónicos es agua. La barra pasa a celeste
+   y un brillo la recorre como una corriente. */
+.gauge[data-agua] { background: var(--water-bg); }
+.gauge-fill[data-level="agua"] { background: linear-gradient(90deg, #2a9fd6, var(--water)); }
+.gauge[data-agua]::after {
+  content: "";
+  position: absolute; inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .5), transparent) no-repeat;
+  background-size: 35% 100%;
+  animation: agua-corre 2.4s ease-in-out infinite;
+}
+.readout[data-agua] .readout-value { color: var(--water); }
+.readout[data-agua] .readout-foot { color: var(--water); }
+@keyframes agua-corre {
+  from { background-position: -60% 0; }
+  to { background-position: 160% 0; }
+}
 .gauge-mark.m5 { left: 1.25%; }
 .gauge-mark.m100 { left: 25%; }
 
@@ -501,6 +523,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); box-shad
 /* Sin vigencia confirmada: nada se muestra en verde. Un dato antiguo
    no confirma que el paso esté habilitado. */
 .readouts[data-stale] .gauge-fill[data-level="ok"] { background: var(--text-3); }
+.readouts[data-stale] .gauge[data-agua]::after { animation: none; opacity: 0; }
 .readouts[data-stale] .steps[data-level="0"] li[data-step="0"] { color: var(--text-3); }
 .readouts[data-stale] .steps[data-level="0"] li[data-step="0"]::before { background: var(--text-3); }
 .readouts[data-stale] .readout:not([data-sev="crit"]) .readout-value { color: var(--text-2); }
