@@ -26,7 +26,7 @@ Una medición está **vigente** cuando la API informa recepción reciente y medi
 ## Monitoreo
 
 - **Banda de estado:** señal con su lámpara, diagnóstico del ESP32, vigencia, código, hora de medición y secuencia.
-- **Lecturas:** altura de obstrucción de cada carril con una escala de 0 a 400 cm (la altura de montaje del sensor) (marcas en 5 cm, libre, y 100 cm, alta) y el agua en tres pasos: seco, confirmando y crítica.
+- **Lecturas:** altura de obstrucción de cada carril con una escala de 0 a 400 cm, la altura de montaje del sensor (marcas en 5 cm, libre, y 100 cm, alta), y el agua en tres pasos: seco, confirmando y crítica. Con agua confirmada, las barras de los carriles pasan a celeste con una animación de corriente: lo que miden es el nivel del agua.
 - **Eventos recientes:** los últimos 20 por secuencia.
 - **Dispositivo:** ID del paso, ID del dispositivo, coordenadas y URL de envío. Al pie, *Borrar dispositivo* elimina el paso, su clave, sus lecturas y sus reservas de secuencia después de confirmar en una ventana que indica cuántas lecturas se pierden. `tunel-01` es el paso base que la API vuelve a crear al iniciar, por eso no se puede borrar.
 
