@@ -306,7 +306,8 @@ function setLane(n, e) {
   $(`valido${n}`).textContent = v <= 5
     ? "Libre"
     : v > 100 ? "Obstrucción alta" : "Obstruido";
-  gauge.style.transform = `scaleX(${Math.min(v / 250, 1)})`;
+  // Escala 0-400 cm: la altura de montaje del sensor sobre la calzada.
+  gauge.style.transform = `scaleX(${Math.min(v / 400, 1)})`;
   gauge.dataset.level = v <= 5 ? "ok" : "warn";
   delete card.dataset.sev;
 }

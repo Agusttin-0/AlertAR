@@ -221,6 +221,24 @@ bool reservar() {
   return ok;
 }
 
+// Abre la conexión TLS con un pedido liviano (/health), sin elegir todavía qué enviar.
+// Cualquier respuesta HTTP deja la conexión lista para reutilizar.
+bool conectar() {
+  static const String salud = [] {
+    const String api(API);
+    const int i = api.indexOf("/api/");
+    return (i > 0 ? api.substring(0, i) : api) + "/health";
+  }();
+  auto &http = clienteHTTP;
+  if (!prepararHTTP(http, salud.c_str())) return false;
+  const int code = http.GET();
+  httpEstado = code;
+  registrarEspera(http, code);
+  http.end();
+  if (code < 0) { clienteTLS.stop(); return false; }
+  return true;
+}
+
 bool errorPermanente(int code) {
   return code == 400 || code == 401 || code == 403 || code == 409 || code == 413 ||
       code == 422 || code == -100 || code == -103;
@@ -403,6 +421,25 @@ void transmitir(void *) {
       continue;
     }
     if (httpEstado == -102) httpEstado = 0; // El diagnóstico no debe mostrar la espera vieja.
+    auto fallar = [&]() {
+      ++errores;
+      if (errorPermanente(httpEstado))
+        envioBloqueado = true; // Error permanente: conservar y esperar /reintentar.
+      vTaskDelay(pdMS_TO_TICKS(std::max(registro::demora(fallos), reintentarDespuesMs)));
+      if (fallos < 5) ++fallos;
+    };
+    if (!clienteTLS.connected()) {
+      // Conectar antes de elegir el lote: el handshake TLS tarda (decenas de segundos en
+      // Wokwi) y mientras tanto se siguen tomando mediciones. Así el lote se arma después,
+      // con la medición más reciente, que ya tiene hora.
+      reintentarDespuesMs = 0;
+      inicioEnvio = millis();
+      envioEnCurso = true;
+      const bool conectada = reservaLista ? conectar() : reservar();
+      duracionEnvio = uint32_t(millis() - inicioEnvio.load());
+      envioEnCurso = false;
+      if (!conectada) { fallar(); continue; }
+    }
     xSemaphoreTake(mutexDisco, portMAX_DELAY);
     const bool hay = cola.lote(loteDisponible ? LOTE_MAX : 1, archivos, jsons);
     xSemaphoreGive(mutexDisco);
@@ -434,11 +471,7 @@ void transmitir(void *) {
       // muestras no deben saltarse el límite de ritmo ni Retry-After.
       vTaskDelay(pdMS_TO_TICKS(pendientes.load() > 0 ? RECUPERACION_MS : ENTRE_ENVIOS_MS));
     } else {
-      ++errores;
-      if (errorPermanente(httpEstado))
-        envioBloqueado = true; // Error permanente: conservar y esperar /reintentar.
-      vTaskDelay(pdMS_TO_TICKS(std::max(registro::demora(fallos), reintentarDespuesMs)));
-      if (fallos < 5) ++fallos;
+      fallar();
     }
   }
 }
