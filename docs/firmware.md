@@ -27,7 +27,7 @@ El puerto serie trabaja a 115200 baudios.
 1. El ESP32 envía un pulso de 10 µs al TRIG.
 2. Una interrupción en el pin ECHO registra los flancos de subida y bajada con el temporizador de alta resolución (`esp_timer_get_time`). La medición espera el eco como máximo 30 ms, sin bloquear el resto del sistema con `pulseIn`.
 3. Distancia = duración × 0,0343 / 2 (velocidad del sonido en cm/µs, ida y vuelta).
-4. La lectura es **válida** si la distancia está entre 2 y 410 cm. Sin eco, eco fuera de tiempo o fuera de ese rango, el carril queda inválido.
+4. La lectura es **válida** si la distancia está entre 2 y 410 cm (de 1,5 a 2 cm se toma como 2 cm y de 400 a 410 cm como 400, por redondeo del eco). Sin eco, eco fuera de tiempo o fuera de ese rango, la lectura es inválida; el carril pasa a inválido después de **3 lecturas inválidas seguidas** (una aislada no cambia el estado).
 5. Altura de la obstrucción = 400 cm (altura de montaje del sensor) − distancia, con mínimo 0. Un auto bajo el sensor da una altura cercana a su altura real.
 
 Se mide un carril, se esperan 60 ms (para que el eco de uno no interfiera con el otro), se mide el otro, y el ciclo completo dura entre 260 y 320 ms.
@@ -76,7 +76,7 @@ Si ninguna regla aplica (no debería pasar), el firmware usa `ERR-002` con el di
 
 `setup()` configura el puerto serie, los pines, los LEDs, el bus I2C y la LCD, inicia la medición ultrasónica y, si `ALERTAR_CONECTIVIDAD_HABILITADA` es `true`, la conectividad.
 
-Durante los primeros **2 s** el equipo muestra "PRECAUCION / Iniciando..." con el LED amarillo y no decide ningún estado. Después, cada ciclo de `loop()`:
+Durante los primeros **2 s** de `loop()` (contados desde el primer ciclo, después del `setup()`) el equipo muestra "PRECAUCION / Iniciando..." con el LED amarillo y no decide ningún estado. Después, cada ciclo de `loop()`:
 
 1. Atiende comandos de conectividad por el puerto serie.
 2. Lee el agua y actualiza su confirmación.
