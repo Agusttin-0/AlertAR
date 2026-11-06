@@ -195,6 +195,19 @@ class TunelesTests(PanelTests):
         with sqlite3.connect(self.config["DATABASE"]) as con:
             self.assertEqual(con.execute("SELECT COUNT(*) FROM eventos WHERE paso_id=?", (d["paso_id"],)).fetchone()[0], 0)
 
+    def test_auto_ids_after_delete(self):
+        # tunel-01 ya existe. Con tunel-02 y tunel-03, borrar tunel-02 no debe dar "ya existe".
+        ids = [self.crear().json["paso_id"] for _ in range(2)]
+        self.assertEqual(ids, ["tunel-02", "tunel-03"])
+        self.assertEqual(self.client.delete("/api/tuneles/tunel-02", headers=self.headers()).status_code, 200)
+        r = self.crear()
+        self.assertEqual((r.status_code, r.json["paso_id"], r.json["dispositivo_id"]), (201, "tunel-02", "esp32-02"))
+        r = self.crear()
+        self.assertEqual((r.status_code, r.json["paso_id"], r.json["dispositivo_id"]), (201, "tunel-04", "esp32-04"))
+        # Paso con nombre propio sin número: toma el primer dispositivo libre en lugar de chocar con esp32-01.
+        r = self.crear(paso_id="centro")
+        self.assertEqual((r.status_code, r.json["dispositivo_id"]), (201, "esp32-05"))
+
     def test_device_key_cannot_admin_and_session_needs_csrf(self):
         self.assertEqual(self.client.post("/api/tuneles", headers=self.headers(device=True), json={"nombre": "x"}).status_code, 401)
         self.login()
@@ -209,6 +222,11 @@ class TunelesTests(PanelTests):
         app = create_app({**self.config, "DATABASE": self.config["DATABASE"] + "2", "ENABLE_SIMULATOR": True})
         r = app.test_client().post("/api/simulador/evento", headers=self.headers(), json={"tipo": "agua"})
         self.assertEqual(r.status_code, 201)
+        # La falla de sensor usa ERR-003 (falla ultrasónica), no ERR-002 (agua pendiente).
+        ev = app.test_client().post("/api/simulador/evento", headers=self.headers(), json={"tipo": "falla"}).json["evento"]
+        self.assertEqual((ev["codigo"], ev["sensor2_valido"], ev["agua_pendiente"]), ("ERR-003", False, False))
+        import simulador
+        self.assertEqual(simulador.ESCENARIOS["falla"]["codigo"], "ERR-003")
 
     def test_no_default_device_key(self):
         import sqlite3

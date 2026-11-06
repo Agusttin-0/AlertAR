@@ -2425,7 +2425,19 @@ function abrirModalNuevoTunel() {
     modal.setAttribute("open", "");
   }
   prepararSelectorMapa();
+  sugerirIds();
   $("nuevo-tunel-nombre").focus();
+}
+
+/* Muestra los IDs que va a asignar el servidor si los campos quedan vacíos: el primer número libre. */
+function sugerirIds() {
+  const usados = new Set(tunnelsList.flatMap(t => [t.paso_id, t.dispositivo_id]));
+  const dos = n => String(n).padStart(2, "0");
+  let n = 1;
+  while (usados.has(`tunel-${dos(n)}`) || usados.has(`esp32-${dos(n)}`)) n++;
+  const num = dos(n);
+  $("nuevo-tunel-paso-id").placeholder = `tunel-${num} (automático)`;
+  $("nuevo-tunel-dispositivo-id").placeholder = `esp32-${num} (automático)`;
 }
 
 function cerrarModalNuevoTunel() {
@@ -2533,17 +2545,6 @@ function initMultiTunelListeners() {
   $("nuevo-tunel-latitud").addEventListener("input", coordsEscritas);
   $("nuevo-tunel-longitud").addEventListener("input", coordsEscritas);
 
-  // Sugerencia automática de identificadores
-  const inputNombre = $("nuevo-tunel-nombre");
-  inputNombre.addEventListener("input", () => {
-    const slug = inputNombre.value
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "");
-    const num = slug.replace(/[^0-9]/g, "");
-    $("nuevo-tunel-paso-id").placeholder = slug || "tunel-03";
-    $("nuevo-tunel-dispositivo-id").placeholder = num ? `esp32-${num}` : "esp32-03";
-  });
 
   const btnCopiarKey = $("btn-copiar-nueva-key");
   btnCopiarKey.addEventListener("click", () => {
