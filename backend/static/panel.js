@@ -378,8 +378,10 @@ function renderMonitor(data) {
     state.comunicacion === "recepcion_reciente" &&
     state.actualidad_medicion === "reciente";
 
+  // Misma vigencia que usa la API para decidir "reciente".
+  const vigencia = Number(data.vigencia_s) > 0 ? Number(data.vigencia_s) : 60;
   freshUntil = fresh
-    ? Date.now() + Math.max(0, 30 - Math.max(state.antiguedad_medicion_s, state.antiguedad_recepcion_s)) * 1000
+    ? Date.now() + Math.max(0, vigencia - Math.max(state.antiguedad_medicion_s, state.antiguedad_recepcion_s)) * 1000
     : 0;
 
   const codeSev = sevOf(e.codigo);
