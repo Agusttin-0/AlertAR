@@ -378,6 +378,7 @@ void transmitir(void *) {
   // Se vuelve a elegir el lote en cada intento: si llegó una medición nueva, va primero.
   std::vector<std::string> archivos, jsons;
   std::vector<bool> ok;
+  bool recienConectada = false;
   for (;;) {
     if (!wifiPermitido) {
       if (!desconectadoPorUsuario) {
@@ -439,9 +440,13 @@ void transmitir(void *) {
       duracionEnvio = uint32_t(millis() - inicioEnvio.load());
       envioEnCurso = false;
       if (!conectada) { fallar(); continue; }
+      recienConectada = true;
     }
     xSemaphoreTake(mutexDisco, portMAX_DELAY);
-    const bool hay = cola.lote(loteDisponible ? LOTE_MAX : 1, archivos, jsons);
+    // Recién conectada, primero va sola la medición más nueva: un pedido chico llega antes que
+    // un lote completo y el panel muestra el estado actual. El historial sigue en lotes.
+    const bool hay = cola.lote(loteDisponible && !recienConectada ? LOTE_MAX : 1, archivos, jsons);
+    recienConectada = false;
     xSemaphoreGive(mutexDisco);
     if (!hay) {
       almacen = 3; ++errores;
