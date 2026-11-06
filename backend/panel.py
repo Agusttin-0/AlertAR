@@ -355,15 +355,29 @@ def registrar_panel(app, db, estado, record):
         conn = db()
         conn.execute("BEGIN IMMEDIATE")
         try:
-            count = conn.execute("SELECT COUNT(*) FROM tuneles").fetchone()[0]
-            paso_id = str(body.get("paso_id", "")).strip().lower() or f"tunel-{count+1:02d}"
+            paso_id = str(body.get("paso_id", "")).strip().lower()
+            dispositivo_id = str(body.get("dispositivo_id", "")).strip().lower()
+            # IDs automáticos: primer número libre. Contar los pasos no alcanza: después de borrar
+            # uno, el número siguiente puede seguir ocupado por otro paso.
+            usados = {r[0] for r in conn.execute("SELECT paso_id FROM tuneles")}
+            usados |= {r[0] for r in conn.execute("SELECT dispositivo_id FROM tuneles")}
+            if not paso_id:
+                n = 1
+                while f"tunel-{n:02d}" in usados or (not dispositivo_id and f"esp32-{n:02d}" in usados):
+                    n += 1
+                paso_id = f"tunel-{n:02d}"
             if not re.fullmatch(r"[a-z0-9_-]{1,80}", paso_id):
                 conn.rollback()
                 return jsonify(error="paso_id_invalido", detalle="Usar 1-80 caracteres alfanuméricos, guion o guion bajo."), 400
-            dispositivo_id = str(body.get("dispositivo_id", "")).strip().lower()
             if not dispositivo_id:
-                num = re.sub(r"[^0-9]", "", paso_id) or str(count + 1)
-                dispositivo_id = f"esp32-{int(num):02d}"
+                # Mismo número que el paso si está libre (tunel-07 → esp32-07); si no, el primero libre.
+                num = re.sub(r"[^0-9]", "", paso_id)[:9]
+                dispositivo_id = f"esp32-{int(num):02d}" if num else ""
+                if not dispositivo_id or dispositivo_id in usados:
+                    n = 1
+                    while f"esp32-{n:02d}" in usados:
+                        n += 1
+                    dispositivo_id = f"esp32-{n:02d}"
             if not re.fullmatch(r"[a-z0-9_-]{1,80}", dispositivo_id):
                 conn.rollback()
                 return jsonify(error="dispositivo_id_invalido"), 400
@@ -467,8 +481,9 @@ def registrar_panel(app, db, estado, record):
             c2_valido = True
             c2_obs = 0
         elif tipo == "falla":
-            codigo = "ERR-002"
-            diagnostico = f"Falla de lectura sensor carril 2 en {tunel['nombre']}"
+            # ERR-003 es la falla ultrasónica del firmware; ERR-002 es "agua pendiente".
+            codigo = "ERR-003"
+            diagnostico = f"Lectura ultrasonica invalida en carril 2 de {tunel['nombre']}"
             agua_activa = False
             agua_pendiente = False
             c1_valido = True
