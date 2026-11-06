@@ -73,7 +73,7 @@ Antes del primer envío de cada encendido, el ESP32 llama a la URL de reserva co
 
 ### 7. Envío y confirmación
 
-Cada pedido lleva hasta **9 eventos** a `<URL de eventos>/lote` (`POST /api/eventos/lote`, ver [api.md](api.md#lotes)) con `Content-Type: application/json` y `X-API-Key: <clave del dispositivo>`. El primero es el **más nuevo**, así el panel muestra el estado actual con el primer pedido; los demás son los más viejos, en orden, para ir completando el historial. Con un solo pendiente se usa `POST /api/eventos`.
+Cada pedido lleva hasta **9 eventos** a `<URL de eventos>/lote` (`POST /api/eventos/lote`, ver [api.md](api.md#lotes)) con `Content-Type: application/json` y `X-API-Key: <clave del dispositivo>`. El primero es el **más nuevo**, así el panel muestra el estado actual con el primer pedido; los demás son los más viejos, en orden, para ir completando el historial. Con un solo pendiente se usa `POST /api/eventos`. Si no hay conexión abierta, el ESP32 primero la abre (con la reserva o con un `GET /health`) y recién después arma el lote: así incluye las mediciones tomadas mientras se conectaba.
 
 Un evento se retira de `/pendientes` **solo** con su ACK: código 200 o 201 y, para ese evento, `"guardado": true` y el mismo `evento_id`. Si el servidor no tiene la ruta de lotes (401, 404 o 405 en esa ruta), el ESP32 sigue de a uno por `/api/eventos`, siempre el más nuevo primero.
 
