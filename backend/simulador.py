@@ -48,8 +48,9 @@ ESCENARIOS = {
         "c2_obs": 0.0,
     },
     "falla": {
-        "codigo": "ERR-002",
-        "diag": "Falla de lectura sensor carril 2 en {nombre}",
+        # ERR-003 es la falla ultrasónica del firmware; ERR-002 es "agua pendiente".
+        "codigo": "ERR-003",
+        "diag": "Lectura ultrasonica invalida en carril 2 de {nombre}",
         "agua_activa": False,
         "agua_pendiente": False,
         "c1_valido": True,
@@ -149,7 +150,7 @@ class TunelSimulado:
             "OK-001": "[OK]",
             "INF-001": "[INF]",
             "ERR-001": "[ERR]",
-            "ERR-002": "[ERR]"
+            "ERR-003": "[ERR]"
         }.get(cfg["codigo"], "[?]")
 
         if status in (200, 201):
