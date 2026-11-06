@@ -21,7 +21,7 @@ El color se reserva para el estado del paso; el resto de la interfaz es neutra.
 | Rojo | `ERR-001`, `ERR-005` | Paso cerrado |
 | Gris | cualquiera sin vigencia confirmada | Sin confirmar |
 
-Una medición está **vigente** cuando la API informa recepción reciente y medición reciente (umbral de 60 s, `STALE_SECONDS`). Si deja de llegar información, el panel la pasa a *Sin confirmar* a los 30 s de la última medición aunque todavía no haya vuelto a consultar. Sin vigencia nada se muestra en verde: las lecturas quedan en gris con la leyenda *Último valor conocido*, porque un dato antiguo no confirma que el paso esté habilitado. El último código sigue visible como dato histórico.
+Una medición está **vigente** cuando la API informa recepción reciente y medición reciente (umbral de 60 s, `STALE_SECONDS`). Si deja de llegar información, el panel la pasa a *Sin confirmar* cuando la última medición o recepción supera esos 60 s (el valor `vigencia_s` que manda la API), aunque todavía no haya vuelto a consultar. Sin vigencia nada se muestra en verde: las lecturas quedan en gris con la leyenda *Último valor conocido*, porque un dato antiguo no confirma que el paso esté habilitado. El último código sigue visible como dato histórico.
 
 ## Monitoreo
 
