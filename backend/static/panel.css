@@ -475,8 +475,8 @@ input:focus, select:focus { outline: none; border-color: var(--accent); box-shad
 .gauge-fill[data-level="warn"] { background: var(--warn); }
 .gauge-fill[data-level="crit"] { background: var(--crit); }
 .gauge-mark { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--bg); }
-.gauge-mark.m5 { left: 2%; }
-.gauge-mark.m100 { left: 40%; }
+.gauge-mark.m5 { left: 1.25%; }
+.gauge-mark.m100 { left: 25%; }
 
 .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
 .steps li {
