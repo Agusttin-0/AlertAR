@@ -378,9 +378,7 @@ function renderMonitor(data) {
     state.comunicacion === "recepcion_reciente" &&
     state.actualidad_medicion === "reciente";
 
-  /* Se apaga cuando la medición supera la misma vigencia que usa la API para decidir
-     "reciente" (vigencia_s). Con un umbral menor la luz se prendía en cada consulta y se
-     apagaba al segundo siguiente. */
+  // Misma vigencia que usa la API para decidir "reciente".
   const vigencia = Number(data.vigencia_s) > 0 ? Number(data.vigencia_s) : 60;
   freshUntil = fresh
     ? Date.now() + Math.max(0, vigencia - Math.max(state.antiguedad_medicion_s, state.antiguedad_recepcion_s)) * 1000
