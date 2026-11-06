@@ -31,7 +31,8 @@
 // CONFIGURACIÓN
 // ============================================================
 
-// Tiempo antes de empezar a reportar fallas
+// Tiempo de lecturas antes de empezar a reportar fallas. Se cuenta desde el
+// primer ciclo del loop: el setup puede tardar más de un segundo.
 constexpr unsigned long TIEMPO_INICIALIZACION_MS = 2000;
 
 // Enviar telemetría aunque no haya cambios cada 5 segundos
@@ -406,8 +407,11 @@ void loop() {
   // PERÍODO DE INICIALIZACIÓN
   // ==========================================================
 
+  static const uint32_t inicioLoop =
+      millis();
+
   if (
-      millis() <
+      uint32_t(millis() - inicioLoop) <
       TIEMPO_INICIALIZACION_MS
   ) {
 
