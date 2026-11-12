@@ -30,7 +30,8 @@ El ESP32 decide la seguridad por su cuenta: si se corta Internet, el semáforo s
 ## Requisitos y credenciales en un vistazo
 
 - **Para simular un paso:** Visual Studio Code con PlatformIO y Wokwi, y la **clave de dispositivo** del paso (se obtiene al crearlo en el panel). Se coloca en `AlertAR-2/include/conectividad_secrets.h`, que no se sube a Git.
-- **Para usar el panel:** la **contraseña del panel** (la clave administrativa del servidor). La sesión dura 8 horas.
+- **Para ver el panel:** nada; es público y de solo lectura.
+- **Para administrar** (agregar o borrar pasos, ver datos del dispositivo): *Iniciar sesión* con la **contraseña del panel** (la clave administrativa del servidor). La sesión dura 8 horas.
 - **Para desplegar el servidor:** Linux con systemd, Python 3.11 o posterior, Tailscale y las variables privadas del servicio. Ver [docs/despliegue.md](docs/despliegue.md).
 - Cada clave de dispositivo solo puede enviar datos de su propio paso. Ninguna clave está en el repositorio. Detalle en [docs/seguridad.md](docs/seguridad.md).
 
@@ -67,5 +68,5 @@ Los cambios entran a `main` por pull request y después se integran en `demo`, n
 ## Pruebas y controles
 
 - `tests/`: lógica de estados (2.700 combinaciones), cola y protocolo del firmware, en C++.
-- `backend/tests/`: 48 pruebas de API, panel, autenticación, estadísticas, exportación, borrado y límites de ritmo. Se ejecutan desde `backend/` con `.venv/bin/python -m unittest discover -s tests`; instalación local en [backend/README.md](backend/README.md).
+- `backend/tests/`: 57 pruebas de API, panel, autenticación, estadísticas, exportación, borrado y límites de ritmo. Se ejecutan desde `backend/` con `.venv/bin/python -m unittest discover -s tests`; instalación local en [backend/README.md](backend/README.md).
 - `scripts/verificar_secretos.sh` y GitHub Actions impiden subir claves, bases de datos o binarios.

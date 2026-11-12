@@ -4,9 +4,11 @@ El panel está en `backend/templates/panel.html`, `backend/static/panel.css` y `
 
 ## Estructura
 
-- **Barra lateral:** todos los pasos a nivel, cada uno con su luz de estado. El paso seleccionado se distingue por el fondo más claro. Abajo, el botón para agregar un paso y el cierre de sesión.
-- **Encabezado:** nombre del paso, ubicación, dispositivo y enlace al mapa externo si tiene coordenadas. El indicador *En vivo* muestra la hora de la última consulta correcta.
+- **Barra lateral:** el logo, todos los pasos a nivel, cada uno con su luz de estado. El paso seleccionado se distingue por el fondo más claro. Abajo, *Iniciar sesión*; con la sesión iniciada, el botón para agregar un paso y el cierre de sesión.
+- **Encabezado:** nombre del paso, ubicación y dispositivo. El indicador *En vivo* muestra la hora de la última consulta correcta.
 - **Pestañas:** Monitoreo, Historial, Estadísticas y Mapa.
+
+El panel es **público y de solo lectura**: cualquiera lo ve sin clave. Con *Iniciar sesión* (contraseña del panel) aparecen las opciones de administración: agregar pasos y la sección *Dispositivo*. Ver [seguridad.md](seguridad.md#panel-sesión-cookie-y-csrf).
 
 En pantallas angostas la barra lateral pasa a ser una fila de pasos desplazable arriba del contenido.
 
@@ -27,8 +29,12 @@ Una medición está **vigente** cuando la API informa recepción reciente y medi
 
 - **Banda de estado:** señal con su lámpara, diagnóstico del ESP32, vigencia, código, hora de medición y secuencia.
 - **Lecturas:** altura de obstrucción de cada carril con una escala de 0 a 400 cm, la altura de montaje del sensor (marcas en 5 cm, libre, y 100 cm, alta), y el agua en tres pasos: seco, confirmando y crítica. Con agua confirmada, las barras de los carriles pasan a celeste con una animación de corriente: lo que miden es el nivel del agua.
-- **Eventos recientes:** los últimos 20 por secuencia.
-- **Dispositivo:** ID del paso, ID del dispositivo, coordenadas y URL de envío. Al pie, *Borrar dispositivo* elimina el paso, su clave, sus lecturas y sus reservas de secuencia después de confirmar en una ventana que indica cuántas lecturas se pierden. `tunel-01` es el paso base que la API vuelve a crear al iniciar, por eso no se puede borrar.
+- **Vista del paso:** el túnel visto de frente, con los dos carriles, un semáforo a la entrada y un cartel LED en el techo.
+  - El semáforo y el cartel siguen el **código del ESP32**, no la altura: un vehículo que pasa (`INF-001`) queda en verde. El cartel muestra lo que leería un conductor: `PASO HABILITADO`, `PRECAUCION` con `OBSTRUCCION`, `CARRIL BLOQUEADO` o `VERIFICANDO AGUA`, y `PASO CERRADO` con `AGUA CRITICA` o `AMBOS BLOQUEADOS`. Sin mediciones queda apagado. Nada titila.
+  - Sin agua, cada carril muestra una caja de la altura medida: gris si es de paso, amarilla si la obstrucción persiste. Un sensor sin lectura válida se ve rayado.
+  - Con agua confirmada no hay cajas: el túnel se llena hasta la lectura más baja de los dos carriles (el ultrasonido mide la superficie del agua). El agua y las cajas suben con una animación.
+  - La lista de eventos está en Historial, por eso Monitoreo ya no la repite.
+- **Dispositivo** (solo con sesión iniciada): ID del paso, ID del dispositivo, coordenadas y URL de envío. Al pie, *Borrar dispositivo* elimina el paso, su clave, sus lecturas y sus reservas de secuencia después de confirmar en una ventana que indica cuántas lecturas se pierden. `tunel-01` es el paso base que la API vuelve a crear al iniciar, por eso no se puede borrar.
 
 La pestaña consulta `/api/panel/<paso>` cada 5 s y se pausa mientras la pestaña del navegador está oculta.
 
@@ -72,8 +78,9 @@ La pestaña Mapa dibuja un mapa esquemático de la Ciudad de Buenos Aires en SVG
 
 - Se mueve arrastrando y se acerca con la rueda o con los botones. Las etiquetas aparecen según el acercamiento: barrios en la vista general, lugares y avenidas principales al acercar, todas las avenidas de cerca.
 - Cada paso con coordenadas es un marcador con el color de su estado (rojo con pulso si está cerrado). Un click en el marcador, o en la lista *Estado actual*, abre su Monitoreo. Los pasos sin coordenadas figuran en la lista como *Sin ubicación*.
-- Al agregar un paso, la ubicación se marca tocando el mismo mapa; las coordenadas exactas se pueden escribir en *Opciones avanzadas* y el marcador se actualiza.
+- Al cambiar de paso con la pestaña Mapa abierta, el marcador seleccionado y la fila resaltada pasan al paso nuevo.
+- Al agregar un paso, la dirección y el punto en el mapa son **obligatorios**. La ubicación se marca tocando el mismo mapa; las coordenadas exactas se pueden escribir en *Opciones avanzadas* y el marcador se actualiza.
 
 ## Límites y concurrencia
 
-El servidor limita el ritmo de pedidos por tipo (ingesta, lectura, administración y login) con cubetas globales por proceso y atiende hasta 16 pedidos a la vez. Los valores, sus variables de entorno y los de la Raspberry Pi están en [api.md](api.md#límites-de-ritmo). Con los valores por defecto, 20 paneles abiertos y 10 ESP32 enviando su cola al mismo tiempo no reciben rechazos.
+El servidor limita el ritmo de pedidos por tipo (ingesta, lectura, administración y login) con cubetas globales por proceso y atiende hasta 16 pedidos a la vez. Los valores, sus variables de entorno y los de la Raspberry Pi están en [api.md](api.md#límites-de-ritmo). Los valores por defecto alcanzan para una clase entera (decenas de personas) abriendo el panel a la vez. Si el panel se publica con el proxy de Cloudflare ([deploy/cloudflare](../deploy/cloudflare/README.md)), los visitantes comparten las respuestas y al servidor le llegan muchos menos pedidos.

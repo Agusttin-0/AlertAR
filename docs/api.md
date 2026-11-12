@@ -10,19 +10,19 @@ La API está en `backend/app.py` (contrato, ingesta, estado e historial) y `back
 | `POST` | `/api/eventos` | Clave del dispositivo o administrativa | Recibir un evento |
 | `POST` | `/api/eventos/lote` | Clave del dispositivo o administrativa | Recibir de 1 a 10 eventos en un pedido |
 | `POST` | `/api/dispositivos/{dispositivo_id}/reserva` | Clave del dispositivo o administrativa | Reservar un rango de secuencias para una instalación de firmware |
-| `GET` | `/api/pasos/{paso_id}/estado` | Panel o administrativa | Último estado conocido y su vigencia |
-| `GET` | `/api/pasos/{paso_id}/historial` | Panel o administrativa | Eventos paginados (`limite` 1–200, `offset`) |
-| `GET` | `/api/pasos/{paso_id}/estadisticas` | Panel o administrativa | Resumen de un rango (`rango=1h|6h|24h|7d|all`) |
-| `GET` | `/api/pasos/{paso_id}/exportar` | Panel o administrativa | Archivo CSV o JSON (`formato`, `desde`, `hasta`) |
-| `GET` | `/api/panel/{paso_id}` | Panel o administrativa | Estado y últimos 20 eventos para Monitoreo |
-| `GET` | `/api/tuneles` | Panel o administrativa | Pasos con último código y última recepción |
+| `GET` | `/api/pasos/{paso_id}/estado` | Público | Último estado conocido y su vigencia |
+| `GET` | `/api/pasos/{paso_id}/historial` | Público | Eventos paginados (`limite` 1–200, `offset`) |
+| `GET` | `/api/pasos/{paso_id}/estadisticas` | Público | Resumen de un rango (`rango=1h|6h|24h|7d|all`) |
+| `GET` | `/api/pasos/{paso_id}/exportar` | Público | Archivo CSV o JSON (`formato`, `desde`, `hasta`) |
+| `GET` | `/api/panel/{paso_id}` | Público | Estado para Monitoreo (`eventos` va vacío: la lista está en `/historial`) |
+| `GET` | `/api/tuneles` | Público | Pasos con último código y última recepción |
 | `POST` | `/api/tuneles` | Panel (con CSRF) o administrativa | Crear un paso y su clave |
 | `PATCH` | `/api/tuneles/{paso_id}` | Panel (con CSRF) o administrativa | Editar nombre, ubicación y coordenadas |
 | `POST` | `/api/tuneles/{paso_id}/clave` | Panel (con CSRF) o administrativa | Reemplazar la clave del dispositivo |
 | `DELETE` | `/api/tuneles/{paso_id}` | Panel (con CSRF) o administrativa | Borrar el paso, su clave, sus eventos y sus reservas |
 | `GET` `POST` | `/login`, `POST /salir` | Navegador | Iniciar y cerrar la sesión del panel |
 
-"Panel" significa una sesión iniciada con la contraseña del panel. "Administrativa" es la clave `ALERTAR_API_KEY` en el encabezado `X-API-Key`.
+"Público" significa sin credencial: el panel es de solo lectura para cualquiera. "Panel" significa una sesión iniciada con la contraseña del panel. "Administrativa" es la clave `ALERTAR_API_KEY` en el encabezado `X-API-Key`. Las lecturas públicas se reutilizan durante `ALERTAR_CACHE_LECTURA_S` segundos (1,5 por defecto) para todos los visitantes; un evento nuevo o un cambio de pasos vacía esa caché.
 
 ## Contrato del evento (v1)
 
@@ -96,7 +96,7 @@ El resultado se guarda 10 s en memoria por paso y rango. Con 84.000 eventos, `24
 
 ## Gestión de pasos
 
-- **Crear:** nombre de 1 a 60 caracteres; `paso_id` y `dispositivo_id` opcionales (si faltan, `tunel-NN` y `esp32-NN`), con 1–80 caracteres `a-z 0-9 _ -` y sin repetirse; ubicación de hasta 120 caracteres y coordenadas opcionales (latitud −90 a 90, longitud −180 a 180, las dos o ninguna). Genera una clave aleatoria de 32 caracteres, guarda su hash y la devuelve una sola vez.
+- **Crear:** nombre de 1 a 60 caracteres; `paso_id` y `dispositivo_id` opcionales (si faltan, `tunel-NN` y `esp32-NN`), con 1–80 caracteres `a-z 0-9 _ -` y sin repetirse; ubicación (obligatoria, hasta 120 caracteres) y coordenadas (obligatorias, latitud −90 a 90 y longitud −180 a 180), para que todo paso nuevo aparezca en el mapa. Sin ellas responde 400 `ubicacion_requerida`. Genera una clave aleatoria de 32 caracteres, guarda su hash y la devuelve una sola vez.
 - **Editar:** nombre, ubicación y coordenadas con las mismas reglas.
 - **Regenerar clave:** la anterior deja de funcionar de inmediato.
 - **Borrar:** elimina el paso, sus eventos y sus reservas en una transacción. `tunel-01` no se borra porque la API lo vuelve a crear al iniciar.
@@ -118,9 +118,9 @@ Cada pedido a `/api/*` consume una ficha de una cubeta global del proceso según
 | Tipo | Por defecto (servidor) | Raspberry Pi | Variable |
 |---|---|---|---|
 | Ingesta | 20/s, ráfaga 60 | 2/s, ráfaga 4 | `ALERTAR_LIMITE_INGESTA` |
-| Lectura | 30/s, ráfaga 90 | 4/s, ráfaga 8 | `ALERTAR_LIMITE_LECTURA` |
+| Lectura | 60/s, ráfaga 400 | 4/s, ráfaga 8 | `ALERTAR_LIMITE_LECTURA` |
 | Admin | 2/s, ráfaga 10 | 0,5/s, ráfaga 6 | `ALERTAR_LIMITE_ADMIN` |
-| Login | 0,1/s, ráfaga 5 | igual | `ALERTAR_LIMITE_LOGIN` |
+| Login | 0,5/s, ráfaga 20 | igual | `ALERTAR_LIMITE_LOGIN` |
 | Simultáneos | 16 | 4 | `ALERTAR_CONCURRENCIA` |
 
 Las variables usan el formato `ritmo,ráfaga`. Como los límites y la caché de estadísticas viven en memoria del proceso, gunicorn debe correr con un solo proceso y varios hilos.
