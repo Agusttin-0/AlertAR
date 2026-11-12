@@ -6,6 +6,7 @@ Este documento reúne quién puede hacer qué en AlertAR, con qué credencial, d
 
 | Credencial | Quién la tiene | Dónde se guarda | Qué permite |
 |---|---|---|---|
+| **Ninguna** (visitante) | Cualquiera que abra el panel | — | Ver el panel en solo lectura: estado, historial, estadísticas, exportación y mapa. No ve claves ni datos del dispositivo y no puede crear, editar ni borrar pasos |
 | **Clave administrativa** (`ALERTAR_API_KEY`, mínimo 24 caracteres) | El administrador | Solo en el entorno privado del servidor (`alertar.env`, permisos 600) | Todo: leer, gestionar pasos y enviar eventos. También es la **contraseña del panel** |
 | **Sesión del panel** | Quien inició sesión con la contraseña | Cookie firmada en el navegador | Leer todo y, con token CSRF, gestionar pasos. No envía eventos |
 | **Clave de dispositivo** (una por paso, 32 caracteres aleatorios) | El ESP32 de ese paso | En el servidor, solo su hash; en el ESP32, en `conectividad_secrets.h` (ignorado por Git) | Únicamente enviar eventos y reservar secuencias **de su paso** |
@@ -23,19 +24,21 @@ Ninguna clave está en el repositorio. Cada clave se envía en el encabezado `X-
 
 ## Panel: sesión, cookie y CSRF
 
+El panel es público y de solo lectura: se abre sin iniciar sesión. *Iniciar sesión* (abajo en la barra lateral) solo hace falta para administrar; con la sesión aparecen *Agregar paso a nivel* y la sección *Dispositivo*. Ocultarlas es solo visual: el servidor rechaza esas acciones sin sesión o clave administrativa.
+
 1. `GET /login` muestra el formulario con un token CSRF guardado en la sesión.
 2. `POST /login` compara la contraseña con la clave administrativa en tiempo constante (`hmac.compare_digest`). Si es correcta, limpia la sesión, la marca como iniciada y redirige al panel. Si no, responde 401. Si el token del formulario no coincide, responde 400.
 3. La cookie de sesión está **firmada** con una clave derivada de la clave administrativa (cambiar esa clave cierra todas las sesiones), y es `Secure` (solo HTTPS), `HttpOnly` (el JavaScript no la lee) y `SameSite=Strict` (otro sitio no puede usarla). Dura **8 horas**.
 4. Toda acción que modifica (crear, editar, regenerar clave, borrar) exige el encabezado `X-CSRF-Token` con el token de la sesión: una página ajena no puede hacer que el navegador ejecute esas acciones. Sin token → 403.
-5. `POST /salir` (también con token) cierra la sesión.
+5. `POST /salir` (también con token) cierra la sesión y vuelve al panel público.
 
-Los intentos de adivinar la contraseña están limitados por la cubeta de login: 5 intentos seguidos y después 1 cada 10 s, para todo el servidor.
+Los intentos de adivinar la contraseña están limitados por la cubeta de login: 20 intentos seguidos y después 1 cada 2 s, para todo el servidor. Es más amplio que antes porque el botón está a la vista de todos y un límite muy bajo dejaba afuera al administrador; con una clave de 24 caracteres o más, adivinarla sigue sin ser viable.
 
 ## Orden de los controles en cada pedido
 
 1. **Concurrencia:** si ya se atienden `ALERTAR_CONCURRENCIA` pedidos, 429.
 2. **Tamaño:** cuerpo de más de 16 KiB, 413.
-3. **Autenticación** (solo `/api/*` con `ALERTAR_REQUIRE_AUTH=1`): clave administrativa, clave de dispositivo (solo ingesta), sesión (lectura; escritura con CSRF). Si no corresponde, 401 o 403.
+3. **Autenticación** (solo `/api/*` con `ALERTAR_REQUIRE_AUTH=1`): clave administrativa, clave de dispositivo (solo ingesta), sesión (escritura con CSRF) o, para las lecturas públicas, ninguna. Si no corresponde, 401 o 403.
 4. **Límite de ritmo:** una ficha de la cubeta del tipo de pedido; si no hay, 429 con `Retry-After: 5` ([api.md](api.md#límites-de-ritmo)). Un pedido rechazado por autenticación no consume fichas.
 5. **Validación del contenido** en la ruta ([api.md](api.md#contrato-del-evento-v1)).
 

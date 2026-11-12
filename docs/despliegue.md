@@ -59,6 +59,10 @@ Comprobar después: `/health` responde 200, `/login` carga, un `POST /api/evento
 
 Para uso real se despliega `main`. Para presentaciones se puede desplegar `demo` (herramientas en [deploy/demo/README.md](../deploy/demo/README.md)), que además guarda y muestra la clave de cada dispositivo. Al volver a `main`, vaciar esa copia con `UPDATE tuneles SET clave_demo = NULL`.
 
+## Panel público en alertar.pages.dev
+
+El panel se puede publicar en `https://alertar.pages.dev` con Cloudflare Pages, que hace de proxy hacia el servidor (Funnel), sirve los archivos fijos y comparte las lecturas entre todos los visitantes. Pasos y cambio de servidor en [deploy/cloudflare/README.md](../deploy/cloudflare/README.md).
+
 ## Capacidad medida
 
 Con 252.000 eventos (14 días de tres pasos), una prueba de 60 s con 20 paneles abiertos y 10 ESP32 enviando su cola a 1 evento/s no tuvo rechazos: monitoreo con mediana de 6 ms, estado de los pasos 74 ms, estadísticas 51 ms (p95 0,9 s sin caché) e ingesta 4 ms. El servicio usó como máximo 137 MB.
