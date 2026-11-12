@@ -116,12 +116,15 @@ def create_app(config=None):
         # entorno (deploy/raspi/limites.conf). Formato de las variables: "ritmo,ráfaga".
         RATE_LIMITS={
             "ingesta": _limite("ALERTAR_LIMITE_INGESTA", (20, 60)),
-            "lectura": _limite("ALERTAR_LIMITE_LECTURA", (30, 90)),
-            "login": _limite("ALERTAR_LIMITE_LOGIN", (0.1, 5)),
+            # Panel público: una clase entera (~30 personas) abriendo la página a la vez.
+            "lectura": _limite("ALERTAR_LIMITE_LECTURA", (60, 400)),
+            "login": _limite("ALERTAR_LIMITE_LOGIN", (0.5, 20)),
             "admin": _limite("ALERTAR_LIMITE_ADMIN", (2, 10)),
         },
         # Pedidos atendidos a la vez; el resto recibe 429 en lugar de acumularse.
         CONCURRENCIA=int(os.environ.get("ALERTAR_CONCURRENCIA", "16")),
+        # Segundos que se reutiliza la misma respuesta de lectura para todos los que miran.
+        CACHE_LECTURA_S=float(os.environ.get("ALERTAR_CACHE_LECTURA_S", "1.5")),
         ENABLE_SIMULATOR=os.environ.get("ALERTAR_ENABLE_SIMULATOR", "0") == "1",
         SESSION_COOKIE_SECURE=os.environ.get("ALERTAR_REQUIRE_AUTH", "0") == "1",
         SESSION_COOKIE_HTTPONLY=True,

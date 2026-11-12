@@ -54,7 +54,7 @@ class ExportarTests(unittest.TestCase):
         self.assertEqual(len(json.loads(self.get(f"formato=json&hasta={hasta}").get_data(as_text=True))), 50)
 
     def test_validaciones_y_permisos(self):
-        self.assertEqual(self.get("formato=csv", headers=False).status_code, 401)
+        self.assertEqual(self.get("formato=csv", headers=False).status_code, 200)  # panel público
         self.assertEqual(self.get("formato=xml").status_code, 400)
         self.assertEqual(self.get("formato=csv&desde=ayer").status_code, 400)
         self.assertEqual(self.get("formato=csv&desde=2026-11-05T10:00:00").status_code, 400)  # sin zona horaria

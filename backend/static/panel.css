@@ -183,10 +183,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); box-shad
 }
 
 .brand { display: flex; align-items: center; gap: 12px; padding: 0 8px; }
-.brand-mark { width: 28px; height: 28px; flex: none; }
-.brand-mark rect { fill: var(--surface-3); stroke: var(--border-strong); }
-.brand-mark circle { fill: var(--crit); }
-.brand-mark circle + circle { fill: var(--text-3); }
+.brand-mark { width: 40px; height: 40px; flex: none; border-radius: 50%; }
 .brand-name { font-size: 16px; font-weight: 600; }
 .brand-sub { font-size: 12px; color: var(--text-3); }
 
@@ -1190,3 +1187,51 @@ tr.detail-row:hover td { background: var(--bg); }
   .map-picker { height: 200px; }
   table.data td.diag { max-width: 220px; }
 }
+
+/* ---------- Vista del paso (túnel de frente) ---------- */
+.tunel { display: block; width: 100%; max-width: 640px; margin: 4px auto 8px; height: auto; }
+.tunel-boca { fill: var(--surface-2); stroke: var(--border-strong); stroke-width: 3; }
+.tunel-calzada { stroke: var(--text-3); stroke-width: 3; }
+.tunel-division { stroke: var(--text-3); stroke-width: 2; stroke-dasharray: 10 10; }
+.tunel-sensor { fill: var(--text-2); }
+.tunel-carril { fill: var(--text-2); font-size: 13px; text-anchor: middle; }
+.tunel-texto { fill: var(--text); font-size: 13px; font-weight: 600; text-anchor: middle; transition: y .9s var(--ease); }
+.tunel-texto.agua { fill: var(--water); }
+.tunel-caja, .tunel-agua {
+  transform-box: fill-box; transform-origin: 50% 100%;
+  transform: scaleY(0); transition: transform .9s var(--ease), fill .4s;
+}
+.tunel-caja { fill: var(--text-3); opacity: .55; rx: 4px; }
+.tunel-caja[data-tipo="persistente"] { fill: var(--warn); opacity: .75; }
+.tunel[data-sev="crit"] .tunel-caja[data-tipo="persistente"] { fill: var(--crit); }
+.tunel-agua { fill: var(--water); opacity: .45; }
+.tunel-falla { fill: url(#tunel-rayado); opacity: .5; display: none; }
+.tunel-falla[data-on] { display: inline; }
+.tunel-rayas { fill: var(--warn); }
+.semaforo-poste { stroke: var(--text-3); stroke-width: 5; }
+.semaforo-caja { fill: var(--surface-3); stroke: var(--border-strong); stroke-width: 2; }
+.luz { fill: var(--bg); stroke: var(--border-strong); transition: fill .3s; }
+.tunel[data-sev="ok"] .luz[data-luz="ok"] { fill: var(--ok); }
+.tunel[data-sev="warn"] .luz[data-luz="warn"] { fill: var(--warn); }
+.tunel[data-sev="crit"] .luz[data-luz="crit"] { fill: var(--crit); }
+.tunel[data-sev="unknown"] .tunel-caja[data-tipo="persistente"] { fill: var(--text-3); }
+@media (prefers-reduced-motion: reduce) {
+  .tunel-caja, .tunel-agua, .tunel-texto { transition: none; }
+}
+
+/* ---------- Panel público ---------- */
+body[data-admin="0"] .solo-admin { display: none !important; }
+.sesion-nota { font-size: 12px; color: var(--text-3); padding: 0 8px 6px; }
+.login-note a { color: var(--accent-strong); }
+
+/* ---------- Cartel LED del túnel ---------- */
+.cartel-marco { fill: #0b0b0b; stroke: #3a3d42; stroke-width: 2; }
+.cartel-texto {
+  fill: #ffb52e; font-family: var(--mono); font-size: 18px; font-weight: 700;
+  letter-spacing: 0; text-anchor: middle; dominant-baseline: middle;
+}
+.cartel-rejilla { fill: url(#cartel-led); pointer-events: none; }
+.cartel-led-hueco { fill: #0b0b0b; } /* rejilla oscura: las letras se ven como puntos LED */
+
+/* Sin texto de vigencia la tarjeta mantiene su alto: así no salta la página al llegar datos. */
+#vigencia:empty::after { content: "\00a0"; }
