@@ -23,6 +23,10 @@ else:
 
 RUTAS_ADMIN = ("crear_tunel", "editar_tunel", "rotar_clave_tunel", "eliminar_tunel",
                "simular_evento", "simular_todos")
+# El panel es público y de solo lectura: estas lecturas no piden sesión. Crear, editar y borrar
+# pasos, ver claves y el simulador siguen exigiendo la clave principal (sesión o X-API-Key).
+RUTAS_PUBLICAS = ("panel_datos", "listar_tuneles", "estadisticas_paso", "exportar_paso",
+                  "state", "history")
 
 
 def leer_ubicacion(body):
@@ -111,6 +115,8 @@ def registrar_panel(app, db, estado, record):
                 g.auth_device_id = tunel_auth["dispositivo_id"]
             elif not escritura and session.get("lector"):
                 pass
+            elif not escritura and request.endpoint in RUTAS_PUBLICAS:
+                pass
             elif escritura and session.get("lector") and request.endpoint in RUTAS_ADMIN:
                 # Escrituras con cookie de sesión exigen token CSRF; con la clave principal no hace falta.
                 if not igual(request.headers.get("X-CSRF-Token", ""), session.get("csrf", "")):
@@ -135,6 +141,9 @@ def registrar_panel(app, db, estado, record):
 
     @app.after_request
     def cabeceras(response):
+        # Un dato nuevo o un cambio de pasos se ve en la próxima consulta, sin esperar la caché.
+        if response.status_code < 400 and request.endpoint in RUTAS_ADMIN + ("receive", "receive_lote"):
+            app.extensions["alertar_invalidar_lectura"]()
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "same-origin"
@@ -171,28 +180,74 @@ def registrar_panel(app, db, estado, record):
         if not igual(request.form.get("csrf", ""), session.get("csrf", "")):
             return "Formulario inválido", 400
         session.clear()
-        return redirect(url_for("login"))
+        return redirect(url_for("panel"))  # el panel es público: al salir se sigue viendo
+
+    def es_admin():
+        return not required or bool(session.get("lector"))
 
     @app.get("/")
     def panel():
-        if required and not session.get("lector"):
-            return redirect(url_for("login"))
-        return render_template("panel.html", csrf=csrf(), protegido=required)
+        # Sin sesión no se crea cookie: así cualquier visitante recibe la misma página.
+        admin = es_admin()
+        return render_template("panel.html", csrf=csrf() if admin else "", protegido=required,
+                               es_admin=admin)
+
+    # Caché muy corta compartida: con 30 paneles abiertos, el servidor arma cada respuesta
+    # de lectura una vez cada CACHE_LECTURA_S segundos en lugar de una vez por visitante.
+    cache_lectura, lock_lectura = {}, threading.Lock()
+
+    locks_clave = {}
+
+    def cacheado(clave, generar):
+        ttl = app.config.get("CACHE_LECTURA_S", 0)
+        if ttl <= 0:
+            return generar()
+        with lock_lectura:
+            guardado = cache_lectura.get(clave)
+            if guardado and time.monotonic() - guardado[0] < ttl:
+                return guardado[1], guardado[2]
+            if len(locks_clave) > 500:  # pasos inexistentes pedidos por URL no acumulan locks
+                locks_clave.clear()
+            lock = locks_clave.setdefault(clave, threading.Lock())
+        # Un solo hilo calcula cada clave; los demás esperan y reutilizan su resultado.
+        with lock:
+            with lock_lectura:
+                guardado = cache_lectura.get(clave)
+                if guardado and time.monotonic() - guardado[0] < ttl:
+                    return guardado[1], guardado[2]
+            cuerpo, status = generar()
+            if status == 200:
+                with lock_lectura:
+                    if len(cache_lectura) > 200:
+                        cache_lectura.clear()
+                    cache_lectura[clave] = (time.monotonic(), cuerpo, status)
+        return cuerpo, status
+
+    def invalidar_lectura():
+        with lock_lectura:
+            cache_lectura.clear()
+
+    app.extensions["alertar_invalidar_lectura"] = invalidar_lectura
 
     @app.get("/api/panel/<paso_id>")
     def panel_datos(paso_id):
+        cuerpo, status = cacheado(("panel", paso_id), lambda: _panel_datos(paso_id))
+        return jsonify(cuerpo), status
+
+    def _panel_datos(paso_id):
         tunel = None
         try:
             tunel = db().execute("SELECT paso_id FROM tuneles WHERE paso_id = ?", (paso_id,)).fetchone()
         except Exception:
             pass
         if not tunel and paso_id not in app.config["DISPOSITIVOS"]:
-            return jsonify(error="paso_desconocido"), 404
+            return {"error": "paso_desconocido"}, 404
         response = app.make_response(estado(paso_id))
         snapshot = response.get_json() if response.status_code == 200 else None
-        rows = db().execute("SELECT * FROM eventos WHERE paso_id=? ORDER BY secuencia DESC LIMIT 20", (paso_id,)).fetchall()
-        return jsonify(estado=snapshot, eventos=[record(row) for row in rows], intervalo_s=15,
-                       vigencia_s=app.config["STALE_SECONDS"])
+        # Monitoreo ya no muestra "Eventos recientes" (están en Historial): la respuesta queda
+        # en ~1 KB, importante con muchos visitantes y la subida limitada del servidor.
+        return {"estado": snapshot, "eventos": [], "intervalo_s": 15,
+                "vigencia_s": app.config["STALE_SECONDS"]}, 200
 
     def autorizado_admin():
         return not required or getattr(g, "es_master", False) or bool(session.get("lector"))
@@ -318,14 +373,20 @@ def registrar_panel(app, db, estado, record):
 
     @app.get("/api/tuneles")
     def listar_tuneles():
-        if not autorizado_admin():
-            return jsonify(error="no_autorizado"), 401
+        cuerpo, status = cacheado(("tuneles",), _listar_tuneles)
+        return jsonify(cuerpo), status
+
+    def _listar_tuneles():
+        # Subconsultas por paso: cada una usa un índice de eventos (paso_id, ...). El JOIN con
+        # GROUP BY recorría todos los eventos y tardaba segundos con el historial de la demo.
         rows = db().execute("""
-            SELECT t.*, COUNT(e.id) AS total_eventos, MAX(e.recibido_en) AS ultima_recepcion,
+            SELECT t.*,
+                   (SELECT COUNT(*) FROM eventos WHERE paso_id = t.paso_id) AS total_eventos,
+                   (SELECT recibido_en FROM eventos WHERE paso_id = t.paso_id
+                    ORDER BY recibido_en DESC LIMIT 1) AS ultima_recepcion,
                    (SELECT payload FROM eventos WHERE paso_id = t.paso_id
                     ORDER BY secuencia DESC LIMIT 1) AS ultimo_payload
-            FROM tuneles t LEFT JOIN eventos e ON e.paso_id = t.paso_id
-            GROUP BY t.paso_id ORDER BY t.paso_id ASC""").fetchall()
+            FROM tuneles t ORDER BY t.paso_id ASC""").fetchall()
         resultado = []
         for r in rows:
             codigo = "SIN_DATOS"
@@ -336,7 +397,7 @@ def registrar_panel(app, db, estado, record):
                     pass
             resultado.append({**publico(r), "total_eventos": r["total_eventos"],
                               "ultima_recepcion": r["ultima_recepcion"], "ultimo_codigo": codigo})
-        return jsonify(tuneles=resultado)
+        return {"tuneles": resultado}, 200
 
     @app.post("/api/tuneles")
     def crear_tunel():
@@ -351,6 +412,10 @@ def registrar_panel(app, db, estado, record):
             ubicacion, lat, lon = leer_ubicacion(body)
         except ValueError as error:
             return jsonify(error="ubicacion_invalida", detalle=str(error)), 400
+        # Todo paso nuevo tiene que poder verse en el mapa: dirección y punto son obligatorios.
+        if not ubicacion or lat is None or lon is None:
+            return jsonify(error="ubicacion_requerida",
+                           detalle="Escribí la dirección y marcá el paso en el mapa."), 400
 
         conn = db()
         conn.execute("BEGIN IMMEDIATE")

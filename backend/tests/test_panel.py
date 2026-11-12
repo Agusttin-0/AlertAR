@@ -30,17 +30,47 @@ class PanelTests(unittest.TestCase):
         token = re.search(r'name="csrf" value="([^"]+)"', page.text).group(1)
         return self.client.post("/login", data={"csrf": token, "clave": self.config["API_KEY"]})
 
-    def test_closed_by_default_when_published(self):
-        self.assertEqual(self.client.get("/").status_code, 302)
-        self.assertEqual(self.client.get("/api/panel/tunel-01").status_code, 401)
+    def test_published_panel_reads_are_public_but_writes_are_not(self):
+        self.assertEqual(self.client.get("/").status_code, 200)
+        self.assertEqual(self.client.get("/api/panel/tunel-01").status_code, 200)
         self.assertEqual(self.client.post("/api/eventos", json=self.event).status_code, 401)
         with self.assertRaises(RuntimeError):
             create_app({**self.config, "API_KEY": ""})
 
+    def test_public_panel_is_read_only(self):
+        client = self.client
+        page = client.get("/")
+        self.assertEqual(page.status_code, 200)
+        self.assertIn('data-admin="0"', page.text)
+        self.assertNotIn("Set-Cookie", page.headers)
+        for url in ("/api/panel/tunel-01", "/api/tuneles", "/api/pasos/tunel-01/estado",
+                    "/api/pasos/tunel-01/historial", "/api/pasos/tunel-01/estadisticas"):
+            self.assertNotIn(client.get(url).status_code, (401, 403), url)  # sin datos, estado da 404
+        # Claves y administración siguen cerradas sin sesión.
+        self.assertEqual(client.get("/api/tuneles/tunel-01/clave").status_code, 401)
+        self.assertEqual(client.post("/api/tuneles", json={"nombre": "X"}).status_code, 401)
+        self.assertEqual(client.delete("/api/tuneles/tunel-01").status_code, 401)
+        self.assertEqual(client.post("/api/eventos", json=self.event).status_code, 401)
+        # Con sesión aparecen las opciones de administrador.
+        self.client = client
+        self.login()
+        self.assertIn('data-admin="1"', client.get("/").text)
+
+    def test_read_cache_is_cleared_by_new_events(self):
+        self.app.config["CACHE_LECTURA_S"] = 60
+        self.login()
+        antes = self.client.get("/api/panel/tunel-01").json
+        self.assertIsNone(antes["estado"])  # todavía sin mediciones
+        self.assertEqual(self.client.post("/api/eventos", json=self.event, headers=self.headers(True)).status_code, 201)
+        despues = self.client.get("/api/panel/tunel-01").json
+        self.assertEqual(despues["estado"]["ultimo_estado_conocido"]["secuencia"], self.event["secuencia"])
+
     def test_device_key_can_only_ingest(self):
         self.assertEqual(self.client.post("/api/eventos", json=self.event, headers=self.headers(True)).status_code, 201)
         self.assertEqual(self.client.post("/api/dispositivos/esp32-01/reserva", json={"instalacion_id":"f"*32}, headers=self.headers(True)).status_code, 201)
-        self.assertEqual(self.client.get("/api/panel/tunel-01", headers=self.headers(True)).status_code, 401)
+        # Leer es público; administrar no: la clave de dispositivo no sirve para eso.
+        self.assertEqual(self.client.get("/api/tuneles/tunel-01/clave", headers=self.headers(True)).status_code, 401)
+        self.assertEqual(self.client.delete("/api/tuneles/tunel-01", headers=self.headers(True)).status_code, 401)
 
     def test_login_csrf_cookie_and_read_only_session(self):
         self.assertEqual(self.client.post("/login", data={"clave":self.config["API_KEY"]}).status_code, 400)
@@ -58,9 +88,9 @@ class PanelTests(unittest.TestCase):
         for seq in range(25):
             self.client.post("/api/eventos", json={**self.event,"evento_id":f"panel-{seq}","secuencia":seq}, headers=self.headers())
         result = self.client.get("/api/panel/tunel-01", headers=self.headers()).json
-        self.assertEqual(len(result["eventos"]), 20)
+        self.assertEqual(result["eventos"], [])  # la lista completa está en /historial
         self.assertEqual(result["vigencia_s"], 60)
-        self.assertEqual(result["eventos"][0]["secuencia"], 24)
+        self.assertEqual(result["estado"]["ultimo_estado_conocido"]["secuencia"], 24)
         self.assertEqual(result["estado"]["actualidad_medicion"], "desconocida")
         self.assertEqual(self.client.get("/api/panel/otro", headers=self.headers()).status_code, 404)
 
@@ -213,8 +243,14 @@ class TunelesTests(PanelTests):
         self.login()
         self.assertEqual(self.client.post("/api/tuneles", json={"nombre": "x"}).status_code, 403)
         token = re.search(r'name="csrf"\s+value="([^"]+)"', self.client.get("/").text).group(1)
-        r = self.client.post("/api/tuneles", headers={"X-CSRF-Token": token}, json={"nombre": "x"})
+        r = self.client.post("/api/tuneles", headers={"X-CSRF-Token": token},
+                             json={"nombre": "x", "ubicacion": "Km 1", "latitud": -34.6, "longitud": -58.4})
         self.assertEqual(r.status_code, 201)
+
+    def test_location_required_on_create(self):
+        for falta in ({"ubicacion": None}, {"latitud": None, "longitud": None}, {"ubicacion": " "}):
+            r = self.crear(**falta)
+            self.assertEqual((r.status_code, r.json["error"]), (400, "ubicacion_requerida"), falta)
 
     def test_simulator_disabled_by_default(self):
         r = self.client.post("/api/simulador/evento", headers=self.headers(), json={"tipo": "agua"})

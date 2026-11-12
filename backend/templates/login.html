@@ -5,16 +5,15 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark">
   <title>Acceso · AlertAR</title>
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" sizes="any">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon-32.png') }}" sizes="32x32">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
   <link rel="stylesheet" href="{{ url_for('static',filename='panel.css') }}">
 </head>
 <body class="login-page">
   <main class="login">
     <div class="brand">
-      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true">
-        <rect x="1" y="1" width="22" height="22" rx="5"></rect>
-        <circle cx="8" cy="12" r="3"></circle>
-        <circle cx="16" cy="12" r="3"></circle>
-      </svg>
+      <img class="brand-mark" src="{{ url_for('static', filename='logo.png') }}" alt="" width="40" height="40">
       <div>
         <p class="brand-name">AlertAR</p>
         <p class="brand-sub">Control de pasos a nivel</p>
@@ -31,7 +30,8 @@
         {% if error %}<p role="alert" class="form-error">{{ error }}</p>{% endif %}
         <button type="submit" class="btn btn-primary btn-block">Ingresar</button>
       </form>
-      <p class="login-note">La sesión vence a las 8 horas</p>
+      <p class="login-note">Solo para administradores. La sesión vence a las 8 horas.</p>
+      <p class="login-note"><a href="{{ url_for('panel') }}">Volver al panel</a></p>
     </section>
   </main>
 </body>
