@@ -76,10 +76,10 @@ class EndpointYLimitesTests(unittest.TestCase):
     def master(self):
         return {"X-API-Key": self.config["API_KEY"]}
 
-    def test_endpoint_requiere_sesion_y_valida(self):
+    def test_endpoint_publico_y_valida(self):
         url = "/api/pasos/tunel-01/estadisticas?rango=24h"
-        self.assertEqual(self.client.get(url).status_code, 401)
-        self.assertEqual(self.client.get(url, headers={"X-API-Key": self.config["DEVICE_KEY"]}).status_code, 401)
+        # Panel público: las estadísticas se leen sin sesión.
+        self.assertEqual(self.client.get(url).status_code, 200)
         self.assertEqual(self.client.get("/api/pasos/tunel-01/estadisticas?rango=2d", headers=self.master()).status_code, 400)
         self.assertEqual(self.client.get("/api/pasos/no-existe/estadisticas", headers=self.master()).status_code, 404)
         ahora = datetime.now(timezone.utc).replace(microsecond=0)

@@ -1,6 +1,8 @@
 "use strict";
 
 const $ = id => document.getElementById(id);
+// Sin sesión el panel es de solo lectura: no se piden claves ni se ofrecen acciones de administración.
+const ES_ADMIN = document.body.dataset.admin === "1";
 
 let activeView = "monitor";
 let currentTunnel = "tunel-01";
@@ -242,6 +244,8 @@ const siteSev = new Map(); // severidad conocida por paso (para la barra lateral
 function setStatus(sev, signal, vigencia) {
   const box = $("estado");
   box.dataset.sev = sev;
+  const vista = $("tunel-vista");
+  if (vista) vista.dataset.sev = sev; // el semáforo se apaga si el dato deja de ser vigente
   document.querySelector(".readouts").toggleAttribute("data-stale", sev === "unknown");
   $("senal").textContent = signal;
   if (vigencia !== undefined) $("vigencia").textContent = vigencia;
@@ -333,29 +337,122 @@ function setWater(e) {
   else delete card.dataset.sev;
 }
 
-function renderMonitorEvents(eventsList, animateNew) {
-  const evs = eventsList || [];
-  if (!evs.length) {
-    $("eventos").replaceChildren(emptyRow("Sin registros todavía", 6));
+/* Vista del paso: túnel de frente con semáforo. El color lo decide el código que manda el
+   ESP32 (no la altura): un vehículo que pasa es INF-001 y queda en verde. */
+const TUNEL = { piso: 250, techo: 40, montaje: 400 };
+const TUNEL_PERSISTENTE = new Set(["ERR-004", "ERR-005", "ERR-006", "ERR-007"]);
+const tunelY = cm => TUNEL.piso - (TUNEL.piso - TUNEL.techo) * Math.min(Math.max(cm, 0), TUNEL.montaje) / TUNEL.montaje;
+
+function tunelAltura(rect, cm) {
+  // Se anima con transform (scaleY desde el piso) para que el agua "suba".
+  const f = Math.min(Math.max(cm, 0), TUNEL.montaje) / TUNEL.montaje;
+  rect.style.transform = `scaleY(${f})`;
+}
+
+function tunelTexto(id, texto, cm) {
+  const t = $(id);
+  t.textContent = texto || "";
+  t.setAttribute("y", String(Math.max(tunelY(cm) - 8, TUNEL.techo + 44))); // debajo del cartel
+}
+
+/* Cartel LED del túnel: lo que lee un conductor. Basado en el LCD del ESP32 (logica.h), sin
+   términos técnicos: una falla de sensor o una ocupación transitoria no le dicen nada a quien maneja. */
+const CARTEL = {
+  "OK-001": ["PASO HABILITADO", ""],
+  "INF-001": ["PASO HABILITADO", ""],
+  "ERR-001": ["PASO CERRADO", "AGUA CRITICA"],
+  "ERR-002": ["PRECAUCION", "VERIFICANDO AGUA"],
+  "ERR-003": ["PRECAUCION", ""],
+  "ERR-004": ["PRECAUCION", "OBSTRUCCION"],
+  "ERR-005": ["PASO CERRADO", "AMBOS BLOQUEADOS"],
+  "ERR-006": ["PRECAUCION", "CARRIL BLOQUEADO"],
+  "ERR-007": ["PRECAUCION", "OBSTRUCCION"]
+};
+
+function renderCartel(e) {
+  // Sin mediciones el cartel queda apagado (sin texto).
+  const [l1, l2] = e ? (CARTEL[e.codigo] || ["PRECAUCION", ""]) : ["", ""];
+  $("cartel-l1").textContent = l1;
+  $("cartel-l1").setAttribute("y", l2 ? "31" : "41"); // una sola línea queda centrada
+  $("cartel-l2").textContent = l2;
+  // Si con alguna fuente una línea no entra en el cartel, se comprime para que no se salga.
+  for (const t of [$("cartel-l1"), $("cartel-l2")]) {
+    t.removeAttribute("textLength");
+    if (t.textContent && t.getComputedTextLength() > 160) {
+      t.setAttribute("textLength", "160");
+      t.setAttribute("lengthAdjust", "spacingAndGlyphs");
+    }
+  }
+}
+
+function renderTunel(e, sev) {
+  const svg = $("tunel-vista");
+  if (!svg) return;
+  svg.dataset.sev = sev;
+  renderCartel(e);
+  const leyenda = $("tunel-leyenda");
+  const lect = n => {
+    if (!e || !e[`sensor${n}_valido`]) return null;
+    const v = Number(e[`obstruccion_carril${n}_cm`]);
+    return Number.isFinite(v) ? v : null;
+  };
+  const h = [lect(1), lect(2)];
+  const agua = Boolean(e && e.agua_activa);
+
+  if (agua) {
+    // Con agua el ultrasonido mide la superficie: el nivel es la lectura más baja.
+    const validas = h.filter(v => v !== null);
+    const nivel = validas.length ? Math.min(...validas) : 0;
+    const visible = Math.max(nivel, 12); // capa mínima para que se vea
+    tunelAltura($("tunel-agua"), visible);
+    svg.dataset.agua = "";
+    tunelTexto("tunel-texto-agua", validas.length ? `Agua · ${num1(nivel)} cm` : "Agua detectada", visible);
+    for (const n of [1, 2]) {
+      tunelAltura($(`tunel-caja${n}`), 0);
+      $(`tunel-falla${n}`).toggleAttribute("data-on", false);
+      tunelTexto(`tunel-texto${n}`, "", 0);
+    }
+    leyenda.textContent = "Agua en la calzada: el nivel es la altura medida por los sensores";
     return;
   }
-  const rows = evs.map(item => {
-    const tr = el("tr");
-    const st = el("td");
-    st.append(chip(item.codigo));
-    const h1 = height(item, 1), h2 = height(item, 2);
-    tr.append(
-      td(fmtTime(item.medido_en), "t"),
-      st,
-      td(item.diagnostico, "diag"),
-      td(h1, item.sensor1_valido ? "r" : "r bad"),
-      td(h2, item.sensor2_valido ? "r" : "r bad"),
-      td(String(item.secuencia), "r muted")
-    );
-    if (animateNew && lastSeq !== null && Number(item.secuencia) > lastSeq) tr.classList.add("is-new");
-    return tr;
-  });
-  $("eventos").replaceChildren(...rows);
+
+  delete svg.dataset.agua;
+  tunelAltura($("tunel-agua"), 0);
+  tunelTexto("tunel-texto-agua", "", 0);
+  const persistente = e && TUNEL_PERSISTENTE.has(e.codigo);
+  let ocupados = 0, fallas = 0;
+  for (const n of [1, 2]) {
+    const caja = $(`tunel-caja${n}`);
+    const falla = !!e && !e[`sensor${n}_valido`];
+    $(`tunel-falla${n}`).toggleAttribute("data-on", falla);
+    const v = h[n - 1];
+    if (falla) {
+      fallas++;
+      tunelAltura(caja, 0);
+      tunelTexto(`tunel-texto${n}`, "Sensor sin lectura", 120);
+      continue;
+    }
+    if (v === null || v <= 5) {
+      tunelAltura(caja, 0);
+      tunelTexto(`tunel-texto${n}`, "", 0);
+      continue;
+    }
+    ocupados++;
+    caja.dataset.tipo = persistente ? "persistente" : "paso";
+    tunelAltura(caja, v);
+    tunelTexto(`tunel-texto${n}`, `${num1(v)} cm${persistente ? "" : " · de paso"}`, v);
+  }
+  leyenda.textContent = !e
+    ? "Sin mediciones todavía"
+    : e.agua_pendiente
+      ? "Se detectó agua: el sensor la está confirmando"
+      : fallas
+        ? "Un sensor no está dando lecturas válidas"
+      : persistente
+        ? "Obstrucción que no se mueve"
+        : ocupados
+          ? "Vehículos circulando: el paso sigue habilitado"
+          : "Calzada libre";
 }
 
 function renderMonitor(data) {
@@ -365,7 +462,7 @@ function renderMonitor(data) {
   monitorTunnel = currentTunnel;
 
   if (!e) {
-    setStatus("unknown", "Sin datos", "La API está disponible; esperando al ESP32.");
+    setStatus("unknown", "Sin datos", "");
     $("diagnostico").textContent = "Sin mediciones todavía";
     $("codigo").replaceChildren(document.createTextNode("—"));
     $("medido-en").textContent = "—";
@@ -373,7 +470,7 @@ function renderMonitor(data) {
     setLane(1, null);
     setLane(2, null);
     setWater(null);
-    renderMonitorEvents(data.eventos, false);
+    renderTunel(null, "unknown");
     lastSeq = null;
     lastCodeSev = null;
     return;
@@ -421,7 +518,7 @@ function renderMonitor(data) {
   setLane(2, e);
   setWater(e);
 
-  renderMonitorEvents(data.eventos, sameTunnel);
+  renderTunel(e, fresh ? codeSev : "unknown");
 
   if (escalated) replay($("estado"), "escalate");
   else if (isNew) replay($("estado"), "tick");
@@ -1721,13 +1818,6 @@ function actualizarHeaderTunel() {
     const partes = [tunel.ubicacion, tunel.dispositivo_id.toUpperCase(), tunel.paso_id].filter(Boolean);
     $("header-tunnel-subtitle").textContent = partes.join(" · ");
   }
-  const mapa = $("header-tunnel-map");
-  const conCoords = tunel && tunel.latitud !== null && tunel.longitud !== null &&
-    tunel.latitud !== undefined && tunel.longitud !== undefined;
-  mapa.hidden = !conCoords;
-  if (conCoords) {
-    mapa.href = `https://www.openstreetmap.org/?mlat=${tunel.latitud}&mlon=${tunel.longitud}#map=17/${tunel.latitud}/${tunel.longitud}`;
-  }
   renderDispositivo();
   renderBorrado();
 }
@@ -1751,6 +1841,7 @@ function mostrarClave() {
 }
 
 async function renderDispositivo() {
+  if (!ES_ADMIN) return; // solo con sesión de administrador
   const t = tunnelsList.find(x => x.paso_id === currentTunnel);
   $("disp-paso").textContent = t ? t.paso_id : "—";
   $("disp-id").textContent = t ? t.dispositivo_id : "—";
@@ -1875,6 +1966,7 @@ function cambiarTunel(pasoId) {
 
   const tunel = tunnelsList.find(t => t.paso_id === currentTunnel);
   const nombreTunel = tunel ? tunel.nombre : pasoId;
+  if (activeView !== "monitor") document.title = `${nombreTunel} · ${VIEW_TITLES[activeView]} · AlertAR`;
 
   if (activeView === "monitor") {
     // Limpiar estado inmediatamente para evitar visualización previa
@@ -1888,12 +1980,14 @@ function cambiarTunel(pasoId) {
     setWater(null);
     $("valido1").textContent = "Consultando";
     $("valido2").textContent = "Consultando";
-    $("eventos").replaceChildren(emptyRow("Consultando…", 6));
+    renderTunel(null, "unknown");
     refresh();
   } else if (activeView === "historial") {
     loadHistory();
   } else if (activeView === "estadisticas") {
     loadStats();
+  } else if (activeView === "mapa") {
+    renderMapa(); // mueve el círculo de selección al paso elegido
   }
 }
 
@@ -2537,6 +2631,12 @@ function initMultiTunelListeners() {
 
   $("form-crear-tunel").addEventListener("submit", e => {
     e.preventDefault();
+    if (!$("nuevo-tunel-latitud").value || !$("nuevo-tunel-longitud").value) {
+      const errEl = $("modal-nuevo-tunel-error");
+      errEl.textContent = "Marcá en el mapa dónde está el paso.";
+      errEl.style.display = "block";
+      return;
+    }
     crearNuevoTunel(
       $("nuevo-tunel-nombre").value,
       $("nuevo-tunel-paso-id").value,

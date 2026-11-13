@@ -5,21 +5,36 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark">
   <title>Monitoreo · AlertAR</title>
+  <meta name="description" content="Estado en vivo de los pasos bajo nivel: si están habilitados, con precaución o cerrados por agua u obstrucciones.">
+  <meta name="theme-color" content="#0d0f12">
+  <!-- Vista previa al compartir el enlace (WhatsApp, Telegram, redes) -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="AlertAR">
+  <meta property="og:locale" content="es_AR">
+  <meta property="og:url" content="https://alertar.pages.dev/">
+  <meta property="og:title" content="AlertAR · Pasos bajo nivel en vivo">
+  <meta property="og:description" content="Mirá si cada paso bajo nivel está habilitado, con precaución o cerrado por agua u obstrucciones.">
+  <meta property="og:image" content="https://alertar.pages.dev/static/og.jpg">
+  <meta property="og:image:secure_url" content="https://alertar.pages.dev/static/og.jpg">
+  <meta property="og:image:type" content="image/jpeg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Logo de AlertAR: un túnel con semáforo, sensor y agua, junto a los estados Habilitado, Precaución y Cerrado">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" sizes="any">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon-32.png') }}" sizes="32x32">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='panel.css') }}">
   <script defer src="{{ url_for('static', filename='panel.js') }}"></script>
 </head>
-<body>
+<body data-admin="{{ '1' if es_admin else '0' }}">
 
 <div class="app">
 
   <!-- ===================== BARRA LATERAL ===================== -->
   <aside class="sidebar" aria-label="Pasos a nivel">
     <div class="brand">
-      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true">
-        <rect x="1" y="1" width="22" height="22" rx="5"></rect>
-        <circle cx="8" cy="12" r="3"></circle>
-        <circle cx="16" cy="12" r="3"></circle>
-      </svg>
+      <img class="brand-mark" src="{{ url_for('static', filename='logo.png') }}" alt="" width="40" height="40">
       <div>
         <p class="brand-name">AlertAR</p>
         <p class="brand-sub">Control de pasos a nivel</p>
@@ -34,18 +49,21 @@
       <div id="tuneles-pills" class="site-list" role="group" aria-label="Seleccionar paso a nivel">
         <!-- Cargado por JavaScript -->
       </div>
-      <button id="btn-nuevo-tunel-top" class="btn btn-ghost btn-block" type="button">
+      <button id="btn-nuevo-tunel-top" class="btn btn-ghost btn-block solo-admin" type="button">
         <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"></path></svg>
         Agregar paso a nivel
       </button>
     </div>
 
     <div class="sidebar-foot">
-      {% if protegido %}
+      {% if protegido and es_admin %}
+      <p class="sesion-nota">Sesión de administrador</p>
       <form action="{{ url_for('salir') }}" method="post">
         <input type="hidden" name="csrf" value="{{ csrf }}">
         <button class="btn btn-ghost btn-block">Cerrar sesión</button>
       </form>
+      {% elif protegido %}
+      <a class="btn btn-ghost btn-block" href="{{ url_for('login') }}">Iniciar sesión</a>
       {% endif %}
     </div>
   </aside>
@@ -58,10 +76,6 @@
         <h1 id="header-tunnel-name">Monitoreo del túnel</h1>
         <p class="page-meta">
           <span id="header-tunnel-subtitle">Cargando paso a nivel…</span>
-          <a id="header-tunnel-map" href="#" target="_blank" rel="noopener noreferrer" hidden>
-            Ver en el mapa
-            <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3h7v7M13 3 5 11"></path></svg>
-          </a>
         </p>
       </div>
       <div class="live" id="live" data-state="idle">
@@ -96,6 +110,60 @@
         </dl>
       </section>
 
+      <section class="panel tunel-panel">
+        <header class="panel-head">
+          <div>
+            <h2>Vista del paso</h2>
+            <p class="panel-sub" id="tunel-leyenda">Lo que miden los sensores, visto de frente</p>
+          </div>
+          <div class="panel-actions">
+            <span id="conexion" class="sr-only" role="status">Conectando…</span>
+            <button id="actualizar" class="btn" type="button">
+              <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.5M13 2.5v3h-3"></path></svg>
+              Actualizar
+            </button>
+          </div>
+        </header>
+        <svg id="tunel-vista" class="tunel" viewBox="0 0 520 290" role="img" aria-labelledby="tunel-titulo">
+          <title id="tunel-titulo">Túnel visto de frente</title>
+          <defs>
+            <clipPath id="tunel-clip"><path d="M110 250 V95 Q110 40 165 40 H435 Q490 40 490 95 V250 Z"></path></clipPath>
+            <pattern id="cartel-led" width="2.2" height="2.2" patternUnits="userSpaceOnUse"><rect width="2.2" height="0.5" class="cartel-led-hueco"></rect><rect width="0.5" height="2.2" class="cartel-led-hueco"></rect></pattern>
+            <pattern id="tunel-rayado" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="4" height="8" class="tunel-rayas"></rect></pattern>
+          </defs>
+          <path class="tunel-boca" d="M110 250 V95 Q110 40 165 40 H435 Q490 40 490 95 V250 Z"></path>
+          <g clip-path="url(#tunel-clip)">
+            <rect id="tunel-falla1" class="tunel-falla" x="110" y="40" width="190" height="210"></rect>
+            <rect id="tunel-falla2" class="tunel-falla" x="300" y="40" width="190" height="210"></rect>
+            <rect id="tunel-caja1" class="tunel-caja" x="132" y="40" width="146" height="210"></rect>
+            <rect id="tunel-caja2" class="tunel-caja" x="322" y="40" width="146" height="210"></rect>
+            <rect id="tunel-agua" class="tunel-agua" x="110" y="40" width="380" height="210"></rect>
+          </g>
+          <line class="tunel-calzada" x1="96" y1="250" x2="504" y2="250"></line>
+          <line class="tunel-division" x1="300" y1="246" x2="300" y2="190"></line>
+          <rect class="tunel-sensor" x="197" y="42" width="16" height="7" rx="2"></rect>
+          <rect class="tunel-sensor" x="387" y="42" width="16" height="7" rx="2"></rect>
+          <g class="cartel" id="cartel" aria-hidden="true">
+            <rect class="cartel-marco" x="216" y="13" width="168" height="54" rx="3"></rect>
+            <text id="cartel-l1" class="cartel-texto" x="300" y="31"></text>
+            <text id="cartel-l2" class="cartel-texto" x="300" y="51"></text>
+            <rect class="cartel-rejilla" x="218" y="15" width="164" height="50"></rect>
+          </g>
+          <text id="tunel-texto1" class="tunel-texto" x="205" y="0"></text>
+          <text id="tunel-texto2" class="tunel-texto" x="395" y="0"></text>
+          <text id="tunel-texto-agua" class="tunel-texto agua" x="300" y="0"></text>
+          <text class="tunel-carril" x="205" y="272">Carril 1</text>
+          <text class="tunel-carril" x="395" y="272">Carril 2</text>
+          <g class="semaforo" id="semaforo">
+            <line class="semaforo-poste" x1="52" y1="250" x2="52" y2="168"></line>
+            <rect class="semaforo-caja" x="34" y="70" width="36" height="100" rx="8"></rect>
+            <circle class="luz" data-luz="crit" cx="52" cy="92" r="11"></circle>
+            <circle class="luz" data-luz="warn" cx="52" cy="120" r="11"></circle>
+            <circle class="luz" data-luz="ok" cx="52" cy="148" r="11"></circle>
+          </g>
+        </svg>
+      </section>
+
       <section class="readouts" aria-label="Sensores">
         <article class="readout" id="readout-c1">
           <header><span class="readout-label">Carril 1</span></header>
@@ -118,33 +186,8 @@
         </article>
       </section>
 
-      <section class="panel">
-        <header class="panel-head">
-          <div>
-            <h2>Eventos recientes</h2>
-          </div>
-          <div class="panel-actions">
-            <span id="conexion" class="sr-only" role="status">Conectando…</span>
-            <button id="actualizar" class="btn" type="button">
-              <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.5M13 2.5v3h-3"></path></svg>
-              Actualizar
-            </button>
-          </div>
-        </header>
-        <div class="table-wrap">
-          <table class="data">
-            <thead>
-              <tr><th>Medición</th><th>Estado</th><th>Diagnóstico</th><th class="r">Carril 1</th><th class="r">Carril 2</th><th class="r">Secuencia</th></tr>
-            </thead>
-            <tbody id="eventos">
-              <tr class="empty"><td colspan="6">Sin registros todavía</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
       <!-- ===================== DATOS DEL DISPOSITIVO ===================== -->
-      <section class="panel" aria-labelledby="dispositivo-titulo">
+      <section class="panel solo-admin" aria-labelledby="dispositivo-titulo">
         <header class="panel-head">
           <div>
             <h2 id="dispositivo-titulo">Dispositivo</h2>
@@ -432,18 +475,18 @@
   </header>
 
   <div id="modal-nuevo-tunel-cuerpo">
-    <p class="modal-help">Se genera una clave exclusiva para su ESP32, asociada a este paso. Los campos opcionales se pueden dejar vacíos.</p>
+    <p class="modal-help">Se genera una clave exclusiva para su ESP32, asociada a este paso. La dirección y el punto en el mapa son obligatorios.</p>
     <form id="form-crear-tunel" class="form">
       <label class="field">
         <span>Nombre del paso</span>
         <input type="text" id="nuevo-tunel-nombre" placeholder="Ej: Paso San Martín" required maxlength="60">
       </label>
       <label class="field">
-        <span>Ubicación <em>opcional</em></span>
-        <input type="text" id="nuevo-tunel-ubicacion" placeholder="Ej: Av. Libertador y vías, Km 12" maxlength="120">
+        <span>Ubicación</span>
+        <input type="text" id="nuevo-tunel-ubicacion" placeholder="Ej: Av. Libertador y vías, Km 12" maxlength="120" required>
       </label>
       <div class="field">
-        <span>Ubicación en el mapa <em>opcional</em></span>
+        <span>Ubicación en el mapa</span>
         <div id="nuevo-tunel-mapa" class="map map-picker"></div>
         <p id="nuevo-tunel-coords" class="picker-note">Hacé click en el mapa para marcar dónde está el paso.</p>
       </div>
