@@ -2,7 +2,10 @@
 
 AlertAR es un prototipo de ciudad inteligente para supervisar **pasos bajo nivel** (túneles por debajo de las vías del tren). En cada paso, un ESP32 mide si hay obstrucciones en los dos carriles y si se acumula agua, decide localmente si el paso está habilitado y lo indica con un semáforo y una pantalla. Además envía cada medición a un servidor, donde un panel web muestra en vivo el estado de todos los pasos, su historial, estadísticas y un mapa de la ciudad.
 
-**Panel publicado:** [homebase.tail5a3b96.ts.net:8443](https://homebase.tail5a3b96.ts.net:8443/) (requiere contraseña) · **Repositorio:** [Agusttin-0/AlertAR](https://github.com/Agusttin-0/AlertAR)
+**Presentación:** https://alertar-presentacion.pages.dev  
+**Dashboard:** https://alertar.pages.dev
+
+**Repositorio:** [Agusttin-0/AlertAR](https://github.com/Agusttin-0/AlertAR)
 
 ```text
  Paso a nivel                      Servidor                         Navegador

@@ -15,7 +15,7 @@ Así una clase entera puede tener el panel abierto aunque el servidor esté en u
 
 ## Servidor de destino
 
-El destino está fijo en `ORIGEN`, al principio de `public/_worker.js`: el servidor principal (`homebase.tail5a3b96.ts.net:8443`). No hay cambio automático a otro servidor. Si el principal se cae:
+El destino está fijo en `ORIGEN`, al principio de `public/_worker.js`: el servidor Lenovo (`lenovo-server.tail197fd6.ts.net:8443`), que reemplazó al Dell después de la exposición. No hay cambio automático a otro servidor. Si el principal se cae:
 
 1. Cambiar `ORIGEN` por la URL de Funnel del servidor de reserva y volver a publicar.
 2. Para que el panel muestre datos en vivo, el ESP32 (o Wokwi) también tiene que enviar a ese servidor: cambiar `ALERTAR_API_URL` y `ALERTAR_RESERVA_API_URL` en `AlertAR-2/include/conectividad_secrets.h` y volver a compilar. Cada servidor tiene su propia base de datos.

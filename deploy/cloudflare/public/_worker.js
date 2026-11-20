@@ -9,7 +9,7 @@
 //  - Con sesión de administrador (cookie) todo va directo al servidor.
 
 // Servidor principal (Tailscale Funnel). Si se cae, se cambia a mano por otro y se vuelve a publicar.
-const ORIGEN = "https://homebase.tail5a3b96.ts.net:8443";
+const ORIGEN = "https://lenovo-server.tail197fd6.ts.net:8443";
 // fresco: se entrega sin consultar; viejo: se entrega mientras se actualiza en segundo plano.
 const LECTURAS = [
   { re: /^\/api\/panel\/[^/]+$/, fresco: 2000, viejo: 15000 },        // estado en vivo
