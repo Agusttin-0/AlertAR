@@ -34,6 +34,7 @@ La aplicación crea las tablas al iniciar, sin borrar datos. Por defecto la base
 | `ALERTAR_DATABASE` | Ruta de la base SQLite |
 | `ALERTAR_LIMITE_INGESTA`, `ALERTAR_LIMITE_LECTURA`, `ALERTAR_LIMITE_ADMIN`, `ALERTAR_LIMITE_LOGIN` | Límites de ritmo como `ritmo,ráfaga`; valores en [api.md](../docs/api.md#límites-de-ritmo) |
 | `ALERTAR_CONCURRENCIA` | Pedidos atendidos a la vez (por defecto 16) |
+| `ALERTAR_CONCURRENCIA_EXPORTAR`, `ALERTAR_CONCURRENCIA_ESTADISTICAS` | Exportaciones y cálculos de estadísticas a la vez (por defecto 2 cada uno); el resto recibe 429 |
 | `ALERTAR_ENABLE_SIMULATOR` | `1` habilita `/api/simulador/*`, que inserta eventos falsos sin validar; solo para desarrollo |
 
 ## Probar a mano

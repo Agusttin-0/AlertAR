@@ -88,11 +88,11 @@ El umbral de 60 s es `STALE_SECONDS`. Un `OK-001` solo debe leerse como paso hab
 - **Franja de estado:** el período dividido en 720 tramos; cada uno toma la severidad más grave que ocupe al menos el 10 % de su tiempo cubierto.
 - **Obstrucción:** como máximo 600 puntos, cada uno con el máximo de su bloque.
 
-El resultado se guarda 10 s en memoria por paso y rango. Con 84.000 eventos, `24h` tarda unos 70 ms y `all` menos de 1 s.
+El resultado se guarda en memoria por paso y rango: 10 s, o 30 veces lo que tardó en calcularse (hasta 5 min) si es caro. En un i7-7500U, con 84.000 eventos, `24h` tarda unos 10 ms y `all` unos 7 s, así que `all` se reutiliza 5 min. Cada paso y rango se calcula en un solo hilo a la vez y como máximo `ALERTAR_CONCURRENCIA_ESTADISTICAS` (2) cálculos en total; mientras tanto se entrega el resultado anterior, o 429 con `Retry-After: 3` si todavía no hay ninguno (el panel espera y reintenta).
 
 ## Exportación
 
-`GET /api/pasos/{paso_id}/exportar?formato=csv|json&desde=…&hasta=…` genera el archivo en el servidor y lo envía por partes con su propia conexión a SQLite, sin cargarlo entero en memoria. `desde` y `hasta` son opcionales y deben ser ISO 8601 con zona horaria; se comparan con la hora de medición (o la de recepción si falta). El orden es de la secuencia más alta a la más baja. El CSV empieza con BOM para Excel y usa `true`/`false` en los booleanos. Fechas inválidas o `desde` posterior a `hasta` → 400.
+`GET /api/pasos/{paso_id}/exportar?formato=csv|json&desde=…&hasta=…` genera el archivo en el servidor y lo envía por partes con su propia conexión a SQLite, sin cargarlo entero en memoria. `desde` y `hasta` son opcionales y deben ser ISO 8601 con zona horaria; se comparan con la hora de medición (o la de recepción si falta). El orden es de la secuencia más alta a la más baja. El CSV empieza con BOM para Excel y usa `true`/`false` en los booleanos. Fechas inválidas o `desde` posterior a `hasta` → 400. Cada descarga ocupa un hilo hasta terminar de enviarse (19 MB de CSV para 84.000 eventos: ~6 s de CPU en un i7-7500U y lo que tarde la subida), así que hay como máximo `ALERTAR_CONCURRENCIA_EXPORTAR` (2) a la vez; las demás reciben 429 con `Retry-After: 10`.
 
 ## Gestión de pasos
 
@@ -122,5 +122,7 @@ Cada pedido a `/api/*` consume una ficha de una cubeta global del proceso según
 | Admin | 2/s, ráfaga 10 | 0,5/s, ráfaga 6 | `ALERTAR_LIMITE_ADMIN` |
 | Login | 0,1/s, ráfaga 5 | igual | `ALERTAR_LIMITE_LOGIN` |
 | Simultáneos | 16 | 4 | `ALERTAR_CONCURRENCIA` |
+| Exportaciones a la vez | 2 | 2 | `ALERTAR_CONCURRENCIA_EXPORTAR` |
+| Cálculos de estadísticas a la vez | 2 | 2 | `ALERTAR_CONCURRENCIA_ESTADISTICAS` |
 
 Las variables usan el formato `ritmo,ráfaga`. Como los límites y la caché de estadísticas viven en memoria del proceso, gunicorn debe correr con un solo proceso y varios hilos.

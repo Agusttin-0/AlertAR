@@ -122,6 +122,10 @@ def create_app(config=None):
         },
         # Pedidos atendidos a la vez; el resto recibe 429 en lugar de acumularse.
         CONCURRENCIA=int(os.environ.get("ALERTAR_CONCURRENCIA", "16")),
+        # Trabajos pesados a la vez (cada uno ocupa un hilo y CPU durante segundos). Así siempre
+        # quedan hilos libres para el panel en vivo y los ESP32. Los demás reciben 429.
+        CONCURRENCIA_EXPORTAR=int(os.environ.get("ALERTAR_CONCURRENCIA_EXPORTAR", "2")),
+        CONCURRENCIA_ESTADISTICAS=int(os.environ.get("ALERTAR_CONCURRENCIA_ESTADISTICAS", "2")),
         ENABLE_SIMULATOR=os.environ.get("ALERTAR_ENABLE_SIMULATOR", "0") == "1",
         SESSION_COOKIE_SECURE=os.environ.get("ALERTAR_REQUIRE_AUTH", "0") == "1",
         SESSION_COOKIE_HTTPONLY=True,
