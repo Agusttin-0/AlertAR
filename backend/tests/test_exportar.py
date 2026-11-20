@@ -62,6 +62,26 @@ class ExportarTests(unittest.TestCase):
         r = self.client.get("/api/pasos/no-existe/exportar", headers={"X-API-Key": self.config["API_KEY"]})
         self.assertEqual(r.status_code, 404)
 
+    def test_descargas_simultaneas_con_tope(self):
+        # Cada descarga ocupa un hilo hasta terminar de enviarse: con el tope, muchos visitantes
+        # exportando a la vez no dejan sin hilos al panel en vivo ni a los ESP32.
+        client = create_app({**self.config, "CONCURRENCIA_EXPORTAR": 2}).test_client()
+        url = "/api/pasos/tunel-01/exportar?formato=csv"
+        abiertas = [client.get(url, buffered=False) for _ in range(2)]  # envío todavía en curso
+        self.assertEqual([r.status_code for r in abiertas], [200, 200])
+        tercera = client.get(url)
+        self.assertEqual(tercera.status_code, 429)
+        self.assertEqual(tercera.headers["Retry-After"], "10")
+        self.assertEqual(client.get("/api/panel/tunel-01").status_code, 200)  # el panel sigue
+        abiertas[0].close()                                                  # terminó o se cortó
+        with client.get(url) as r:
+            self.assertEqual(r.status_code, 200)
+            self.assertEqual(len(r.get_data(as_text=True).splitlines()), 451)
+        abiertas[1].close()
+        r = client.get(url)
+        self.assertEqual(r.status_code, 200)
+        r.close()
+
 
 if __name__ == "__main__":
     unittest.main()

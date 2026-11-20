@@ -19,9 +19,9 @@ Para que alguien simule uno de esos pasos: copiar `AlertAR-2/include/conectivida
 ## Scripts
 
 - `generar_historial.py` reemplaza el historial de los pasos de `PASOS` (por nombre) por `HORAS` de datos artificiales con las reglas y textos del firmware. No crea pasos ni cambia claves. Hacer un respaldo de la base antes de ejecutarlo.
-- `carga.py` simula 20 paneles abiertos y 10 ESP32 vaciando su cola durante 60 s contra la API local, e informa tiempos y códigos de respuesta. Los envíos van con cuerpo vacío: pasan autenticación y límites, y la API los rechaza con 400 sin guardar nada.
+- `carga.py` simula paneles abiertos (con los mismos pedidos que `panel.js`), ESP32 mandando eventos válidos y lotes de 9, y con `--tormenta` 20 visitantes pidiendo "Todo el historial" y 15 descargando la exportación completa a la vez. Escribe eventos: correrlo contra una **copia** del servidor (otra base y otro puerto, ver el encabezado del script), nunca contra el real. Con `--solo-lectura` solo simula paneles y sirve para probar el camino público (`--base https://alertar.pages.dev`), pero cada pedido cuenta para el cupo diario gratuito de Cloudflare.
 
-Ambos se ejecutan en el servidor con el entorno privado cargado (`set -a; . ~/.config/alertar/alertar.env; set +a`) y el Python del servicio.
+`generar_historial.py` se ejecuta en el servidor con el entorno privado cargado (`set -a; . ~/.config/alertar/alertar.env; set +a`) y el Python del servicio.
 
 ## Volver al proyecto real
 

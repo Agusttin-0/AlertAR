@@ -79,11 +79,17 @@ def registrar_panel(app, db, estado, record):
     def igual(provista, esperada):
         return bool(esperada) and hmac.compare_digest(provista.encode(), esperada.encode())
 
-    def limitado():
-        response = jsonify(error="ritmo_excedido", detalle="Reintentar sin descartar registros.")
+    def limitado(detalle="Reintentar sin descartar registros.", espera=5):
+        response = jsonify(error="ritmo_excedido", detalle=detalle)
         response.status_code = 429
-        response.headers["Retry-After"] = "5"
+        response.headers["Retry-After"] = str(espera)
         return response
+
+    # Trabajos pesados: cada uno ocupa un hilo y segundos de CPU. Con estos topes, aunque muchos
+    # visitantes pidan exportaciones o "Todo el historial" a la vez, quedan hilos para el panel
+    # en vivo y los ESP32 (ver CONCURRENCIA_* en app.py).
+    exportando = threading.BoundedSemaphore(max(1, int(app.config["CONCURRENCIA_EXPORTAR"])))
+    calculando_stats = threading.BoundedSemaphore(max(1, int(app.config["CONCURRENCIA_ESTADISTICAS"])))
 
     @app.before_request
     def proteger():
@@ -259,8 +265,16 @@ def registrar_panel(app, db, estado, record):
             "latitud": r["latitud"], "longitud": r["longitud"],
         }
 
-    # Caché corta: varios paneles mirando el mismo paso comparten el cálculo.
-    cache_stats, lock_stats = {}, threading.Lock()
+    # Caché compartida: varios paneles mirando el mismo paso comparten el cálculo. Cada clave se
+    # calcula en un solo hilo a la vez; mientras tanto, los demás reciben el resultado anterior
+    # (o 429 si todavía no hay ninguno: el panel espera Retry-After y reintenta).
+    cache_stats, lock_stats, en_calculo = {}, threading.Lock(), set()
+
+    def vigencia_stats(duracion):
+        # Un resultado caro se reutiliza más tiempo: "Todo el historial" de un paso de la demo
+        # (84.000 eventos) tarda ~7 s en el servidor. Así recalcular nunca pasa del ~3 % del tiempo.
+        base = app.config.get("STATS_CACHE_S", 10)
+        return 0 if base <= 0 else max(base, min(300, 30 * duracion))
 
     @app.get("/api/pasos/<paso_id>/estadisticas")
     def estadisticas_paso(paso_id):
@@ -271,19 +285,31 @@ def registrar_panel(app, db, estado, record):
         if not conn.execute("SELECT 1 FROM tuneles WHERE paso_id = ?", (paso_id,)).fetchone():
             return jsonify(error="tunel_no_encontrado"), 404
         clave = (paso_id, rango)
-        ahora = time.monotonic()
         with lock_stats:
             guardado = cache_stats.get(clave)
-            if guardado and ahora - guardado[0] < app.config.get("STATS_CACHE_S", 10):
+            if guardado and time.monotonic() - guardado[0] < guardado[2]:
                 return jsonify(guardado[1])
-        ahora_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
-        total = conn.execute("SELECT COUNT(*) FROM eventos WHERE paso_id = ?", (paso_id,)).fetchone()[0]
-        filas = estadisticas.leer_eventos(conn, paso_id, rango, ahora_ms)
-        resultado = estadisticas.calcular(filas, rango, ahora_ms, total, paso_id)
-        with lock_stats:
-            if len(cache_stats) > 200:
-                cache_stats.clear()
-            cache_stats[clave] = (ahora, resultado)
+            if clave in en_calculo or not calculando_stats.acquire(blocking=False):
+                if guardado:
+                    return jsonify(guardado[1])
+                return limitado("Calculando estadísticas; reintentar en unos segundos.", 3)
+            en_calculo.add(clave)
+        try:
+            inicio = time.monotonic()
+            ahora_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+            total = conn.execute("SELECT COUNT(*) FROM eventos WHERE paso_id = ?", (paso_id,)).fetchone()[0]
+            filas = estadisticas.leer_eventos(conn, paso_id, rango, ahora_ms)
+            resultado = estadisticas.calcular(filas, rango, ahora_ms, total, paso_id)
+            vigencia = vigencia_stats(time.monotonic() - inicio)
+            if vigencia:
+                with lock_stats:
+                    if len(cache_stats) > 200:
+                        cache_stats.clear()
+                    cache_stats[clave] = (time.monotonic(), resultado, vigencia)
+        finally:
+            with lock_stats:
+                en_calculo.discard(clave)
+            calculando_stats.release()
         return jsonify(resultado)
 
     # Exportación completa generada en el servidor y enviada por partes (streaming): un solo
@@ -367,9 +393,25 @@ def registrar_panel(app, db, estado, record):
         sufijo = "_".join(x.strftime("%Y%m%d") for x in (desde, hasta) if x) or "completo"
         nombre = f"alertar_{paso_id}_{sufijo}.{formato}"
         tipo = "text/csv; charset=utf-8" if formato == "csv" else "application/json; charset=utf-8"
-        cuerpo = generar_csv() if formato == "csv" else generar_json()
-        return Response(cuerpo, mimetype=tipo.split(";")[0], content_type=tipo,
-                        headers={"Content-Disposition": f'attachment; filename="{nombre}"'})
+        # El lugar se ocupa hasta que termina el envío (o se corta la conexión), no solo el pedido.
+        if not exportando.acquire(blocking=False):
+            return limitado("Hay otras descargas en curso. Probá de nuevo en unos segundos.", 10)
+        liberado = threading.Event()
+
+        def liberar():
+            if not liberado.is_set():
+                liberado.set()
+                exportando.release()
+
+        try:
+            cuerpo = generar_csv() if formato == "csv" else generar_json()
+            respuesta = Response(cuerpo, mimetype=tipo.split(";")[0], content_type=tipo,
+                                 headers={"Content-Disposition": f'attachment; filename="{nombre}"'})
+            respuesta.call_on_close(liberar)
+        except Exception:
+            liberar()
+            raise
+        return respuesta
 
     @app.get("/api/tuneles")
     def listar_tuneles():

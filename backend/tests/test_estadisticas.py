@@ -1,6 +1,8 @@
 import json
 import os
 import tempfile
+import threading
+import time
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -105,6 +107,56 @@ class EndpointYLimitesTests(unittest.TestCase):
         with mock.patch.dict(os.environ, {"ALERTAR_LIMITE_INGESTA": "2,4", "ALERTAR_LIMITE_LECTURA": "x"}):
             self.assertEqual(_limite("ALERTAR_LIMITE_INGESTA", (20, 60)), (2.0, 4.0))
             self.assertEqual(_limite("ALERTAR_LIMITE_LECTURA", (30, 90)), (30, 90))
+
+    def test_un_solo_calculo_a_la_vez_y_resultado_anterior_mientras_tanto(self):
+        # Muchos visitantes pidiendo "Todo el historial" a la vez no deben ocupar todos los hilos:
+        # se calcula una vez; mientras tanto se entrega el resultado anterior o 429 si no hay.
+        app = create_app({**self.config, "STATS_CACHE_S": 10, "CONCURRENCIA_ESTADISTICAS": 1})
+        client = app.test_client()
+        url = "/api/pasos/tunel-01/estadisticas?rango="
+        original, entro, seguir = estadisticas.calcular, threading.Event(), threading.Event()
+
+        def lento(*args):
+            entro.set()
+            seguir.wait(5)
+            return original(*args)
+
+        self.assertEqual(client.get(url + "all").status_code, 200)       # queda en caché
+        real = time.monotonic
+        with mock.patch("time.monotonic", side_effect=lambda: real() + 1000), \
+                mock.patch("estadisticas.calcular", side_effect=lento):   # caché vencida y cálculo lento
+            resultado = {}
+            hilo = threading.Thread(target=lambda: resultado.update(r=client.get(url + "all").status_code))
+            hilo.start()
+            self.assertTrue(entro.wait(5))
+            self.assertEqual(client.get(url + "all").status_code, 200)   # resultado anterior
+            ocupado = client.get(url + "24h")                            # sin resultado previo ni lugar libre
+            self.assertEqual(ocupado.status_code, 429)
+            self.assertEqual(ocupado.headers["Retry-After"], "3")
+            seguir.set()
+            hilo.join(5)
+            self.assertEqual(resultado["r"], 200)
+            self.assertEqual(client.get(url + "24h").status_code, 200)   # el lugar se liberó
+
+    def test_vigencia_de_estadisticas_crece_con_el_costo(self):
+        client = create_app({**self.config, "STATS_CACHE_S": 10}).test_client()
+        reloj, llamadas = [0.0], []
+        original = estadisticas.calcular
+
+        def caro(*args):  # simula un cálculo de 5 s: se reutiliza 30 × 5 = 150 s
+            llamadas.append(reloj[0])
+            reloj[0] += 5
+            return original(*args)
+
+        def pedir(t):
+            reloj[0] = t
+            self.assertEqual(client.get("/api/pasos/tunel-01/estadisticas?rango=all").status_code, 200)
+
+        with mock.patch("time.monotonic", side_effect=lambda: reloj[0]), \
+                mock.patch("estadisticas.calcular", side_effect=caro):
+            for t in (1000, 1100, 1150, 1160):
+                pedir(t)
+        self.assertEqual(llamadas, [1000, 1160])  # 1100 y 1150 salen de la caché (vence en 1155)
 
 
 if __name__ == "__main__":

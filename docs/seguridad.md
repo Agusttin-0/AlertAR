@@ -41,6 +41,7 @@ Los intentos de adivinar la contraseña están limitados por la cubeta de login:
 3. **Autenticación** (solo `/api/*` con `ALERTAR_REQUIRE_AUTH=1`): clave administrativa, clave de dispositivo (solo ingesta), sesión (escritura con CSRF) o, para las lecturas públicas, ninguna. Si no corresponde, 401 o 403.
 4. **Límite de ritmo:** una ficha de la cubeta del tipo de pedido; si no hay, 429 con `Retry-After: 5` ([api.md](api.md#límites-de-ritmo)). Un pedido rechazado por autenticación no consume fichas.
 5. **Validación del contenido** en la ruta ([api.md](api.md#contrato-del-evento-v1)).
+6. **Trabajos pesados:** exportaciones y cálculos de estadísticas tienen su propio tope de simultáneos (2 y 2); el resto recibe 429. Así muchos visitantes descargando o pidiendo "Todo el historial" a la vez no dejan sin hilos al panel en vivo ni a los ESP32.
 
 `/health` y los archivos estáticos no requieren autenticación ni consumen fichas.
 
