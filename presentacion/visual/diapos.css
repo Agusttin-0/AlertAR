@@ -1,0 +1,258 @@
+/* Presentación de AlertAR. Misma estética que el panel de monitoreo:
+   superficies neutras, el color se reserva para los estados y AlertAR va en blanco y celeste.
+   Todo se diseña sobre 1600 × 900 y se escala a la pantalla (--esc). */
+:root {
+  --bg: #0d0f12; --surface: #14171b; --surface-2: #1a1e23; --border: #23282e; --border-strong: #313840;
+  --text: #e7e9ec; --text-2: #a0a8b2; --text-3: #6c7580;
+  --celeste: #4fc3f7; --accent: #5b8def;
+  --ok: #2eb872; --warn: #e9a92b; --crit: #ef4f4f;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  --u: calc(var(--esc, 1) * 1px); /* 1 px del diseño de 1600 × 900 */
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: var(--font);
+  overflow: hidden; -webkit-font-smoothing: antialiased; }
+canvas { display: block; }
+.marca b { color: var(--celeste); font-weight: inherit; }
+.ico { display: inline-block; font-style: normal; line-height: 0; }
+.ico svg { width: 100%; height: 100%; }
+
+/* ================= Diapositivas 2D ================= */
+#d2 { position: fixed; inset: 0; pointer-events: none; }
+#escena2d { position: absolute; left: 50%; top: 50%; width: 1600px; height: 900px;
+  transform: translate(-50%, -50%) scale(var(--esc, 1)); }
+.diapo { position: absolute; inset: 0; padding: 64px 96px; opacity: 0; }
+.cab { font-size: 24px; letter-spacing: 3px; text-transform: uppercase; color: var(--celeste); margin: 0; font-weight: 600; }
+.diapo h2 { font-size: 64px; margin: 8px 0 0; font-weight: 700; letter-spacing: -1px; line-height: 1.1; }
+.suave { color: var(--text-2); }
+.mono { font-family: var(--mono); }
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+.num-grande { font-size: 150px; font-weight: 800; line-height: .9; letter-spacing: -4px; font-variant-numeric: tabular-nums; }
+
+/* Portada */
+#d-portada { display: grid; place-content: center; text-align: center; opacity: 1; }
+#d-portada img { width: 230px; height: 230px; margin: 0 auto 24px; display: block; }
+#d-portada h1 { font-size: 140px; margin: 0; letter-spacing: -3px; line-height: 1; }
+#d-portada .lema { font-size: 38px; color: var(--text-2); margin: 14px 0 60px; }
+#d-portada .equipo { font-size: 26px; }
+#d-portada .materia { font-size: 22px; color: var(--text-3); margin-top: 12px; letter-spacing: 2px; }
+
+/* Noticias: una por diapositiva, texto a la izquierda y foto a la derecha */
+.noticia-txt { position: absolute; left: 96px; top: 200px; width: 600px; }
+.noticia-txt .fecha { font-size: 28px; color: var(--crit); font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
+.noticia-txt .lugar { font-size: 72px; font-weight: 800; line-height: 1.05; margin: 12px 0 26px; letter-spacing: -1px; }
+.noticia-txt .hecho { font-size: 38px; line-height: 1.3; }
+.noticia-txt .fuente { font-size: 22px; color: var(--text-3); margin-top: 30px; }
+.noticia-foto { position: absolute; right: 96px; top: 150px; width: 760px; height: 600px; border-radius: 10px;
+  overflow: hidden; border: 1px solid var(--border-strong); }
+.noticia-foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.noticia-link { position: absolute; right: 96px; top: 766px; width: 760px; font-size: 21px; color: var(--celeste);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-decoration: none; pointer-events: auto; }
+.noticia-link:hover { text-decoration: underline; }
+
+/* Pasos en CABA */
+#d-pasos .izq, #d-conurbano .izq { position: absolute; left: 96px; top: 190px; width: 620px; }
+#d-pasos .txt-num, #d-conurbano .txt-num { font-size: 44px; font-weight: 600; margin-top: 10px; }
+#d-pasos .foto, #d-conurbano .foto { width: 620px; height: 390px; border-radius: 10px; overflow: hidden; margin-top: 40px; border: 1px solid var(--border-strong); }
+#d-pasos .foto img, #d-conurbano .foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+#d-pasos .der, #d-conurbano .der { position: absolute; left: 790px; top: 150px; width: 714px; height: 700px; }
+.mapa { width: 100%; height: 100%; }
+.mapa .tierra { fill: var(--surface-2); stroke: var(--border-strong); stroke-width: 3; }
+.mapa .punto { fill: var(--celeste); stroke: var(--bg); stroke-width: 4; }
+.mapa .punto-cab { fill: var(--celeste); stroke: var(--bg); stroke-width: 3; }
+.mapa .zona-gba { fill: rgba(79, 195, 247, .10); stroke: rgba(79, 195, 247, .6); stroke-width: 2.5; stroke-linejoin: round; }
+.mapa .zona-caba { fill: var(--surface-2); stroke: var(--border-strong); stroke-width: 3; }
+.mapa .etq-caba { fill: var(--text-2); font-size: 34px; font-weight: 700; text-anchor: middle; dominant-baseline: middle; font-family: var(--font); }
+#d-conurbano .der { left: 740px; top: 110px; width: 800px; height: 770px; }
+.leyenda { display: flex; gap: 40px; justify-content: center; font-size: 28px; color: var(--text-2); margin-top: 14px; }
+.leyenda i { display: inline-block; width: 28px; height: 28px; border-radius: 6px; vertical-align: -4px; margin-right: 12px; }
+.leyenda i.gba { background: rgba(79, 195, 247, .18); border: 2px solid var(--celeste); }
+.leyenda i.caba { background: var(--surface-2); border: 2px solid var(--border-strong); }
+#conurbano { position: absolute; left: 790px; top: 260px; width: 714px; }
+#conurbano .txt-num { font-size: 44px; font-weight: 600; margin-top: 10px; line-height: 1.25; }
+
+/* Lluvia */
+.dos-col { position: absolute; left: 96px; top: 210px; width: 1408px; display: flex; gap: 40px; }
+.dos-col > .panel { flex: 1; padding: 40px 44px; }
+.dos-col h3 { font-size: 40px; margin: 0 0 10px; }
+.dos-col p { font-size: 30px; color: var(--text-2); margin: 0 0 26px; line-height: 1.3; }
+.barras { display: flex; gap: 34px; align-items: flex-end; height: 300px; }
+.barras div { flex: 1; text-align: center; font-size: 28px; }
+.barras i { display: block; margin: 0 auto 14px; width: 110px; border-radius: 6px 6px 0 0; background: var(--celeste); transform-origin: bottom; }
+.meses { display: flex; flex-direction: column; gap: 18px; }
+.meses div { display: flex; align-items: center; gap: 22px; font-size: 38px; font-weight: 700; padding: 16px 24px;
+  border-radius: 8px; background: rgba(79, 195, 247, .10); border: 1px solid rgba(79, 195, 247, .35); }
+.meses .ico { width: 48px; height: 48px; color: var(--celeste); }
+
+/* Cómo se resuelve hoy */
+.linea-tiempo { position: absolute; left: 96px; top: 270px; width: 1408px; display: flex; align-items: flex-start; }
+.linea-tiempo .paso { width: 340px; text-align: center; font-size: 36px; font-weight: 600; line-height: 1.2; }
+.linea-tiempo .paso .ico { width: 150px; height: 150px; padding: 34px; border-radius: 50%; margin-bottom: 24px;
+  background: var(--surface); border: 2px solid var(--border-strong); color: var(--text-2); box-sizing: border-box; }
+.linea-tiempo .paso.tarde .ico { border-color: var(--crit); color: var(--crit); background: rgba(239, 79, 79, .12); }
+.linea-tiempo .flecha { flex: 1; height: 4px; background: var(--border-strong); margin-top: 73px; transform-origin: left; }
+.cita { position: absolute; left: 96px; top: 640px; width: 1408px; font-size: 34px; color: var(--text-2); line-height: 1.35; }
+.datos-fila { position: absolute; left: 96px; top: 220px; width: 1408px; display: flex; gap: 40px; }
+.dato { flex: 1; padding: 36px 40px; }
+.dato .n { font-size: 110px; font-weight: 800; color: var(--celeste); line-height: 1; letter-spacing: -2px; }
+.dato .t { font-size: 34px; margin-top: 10px; line-height: 1.25; }
+.sello { position: absolute; left: 50%; top: 703px; transform: translate(-50%, -50%); white-space: nowrap;
+  border: 4px solid var(--crit); color: var(--crit); font-weight: 800; font-size: 46px; padding: 14px 34px; border-radius: 10px; }
+
+/* Solución */
+.sol-encab { position: absolute; left: 96px; top: 150px; display: flex; align-items: center; gap: 34px; }
+.sol-encab img { width: 150px; height: 150px; }
+.sol-encab h2 { font-size: 96px !important; margin: 0 !important; }
+.tres { position: absolute; left: 96px; top: 400px; width: 1408px; display: flex; gap: 36px; }
+.tres .panel { flex: 1; padding: 40px 40px; }
+.tres .ico { width: 70px; height: 70px; color: var(--celeste); margin-bottom: 20px; }
+.tres b { display: block; font-size: 52px; margin-bottom: 8px; }
+.tres span { font-size: 32px; color: var(--text-2); line-height: 1.3; }
+.difs { position: absolute; left: 96px; top: 206px; width: 1408px; }
+.dif { display: flex; gap: 34px; align-items: center; padding: 22px 0; border-bottom: 1px solid var(--border); }
+.dif .n { font-size: 60px; font-weight: 800; color: var(--celeste); width: 60px; flex: none; line-height: 1; }
+.dif b { display: block; font-size: 42px; }
+.dif span { font-size: 30px; color: var(--text-2); }
+
+/* Lógica */
+.colores { position: absolute; left: 96px; top: 210px; width: 1408px; display: flex; gap: 26px; }
+.color:nth-child(2) { flex: 1.15; }
+.color { flex: 1; border-radius: 10px; padding: 32px 32px 18px; background: var(--surface); border: 2px solid var(--border); }
+.color .luz { width: 96px; height: 96px; border-radius: 50%; margin-bottom: 18px; background: var(--surface-2); }
+.color .estado { font-size: 36px; font-weight: 800; margin-bottom: 14px; color: var(--text-3); }
+.color .cod { padding: 11px 0; border-top: 1px solid var(--border); font-size: 25px; line-height: 1.25; display: flex; gap: 16px; align-items: baseline; }
+.color .cod .mono { flex: none; width: 100px; font-size: 20px; color: var(--text-2); font-weight: 700; }
+.grid4 { position: absolute; left: 96px; top: 220px; width: 1408px; display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+.grid4 .panel { font-size: 36px; line-height: 1.3; display: flex; gap: 30px; align-items: center; padding: 40px 42px; min-height: 270px; }
+.grid4 .ico { width: 72px; height: 72px; flex: none; color: var(--celeste); }
+
+/* Datos y comunicación */
+.diag { position: absolute; left: 96px; top: 180px; width: 1408px; height: 250px; }
+.diag .ext { position: absolute; top: 20px; width: 260px; height: 190px; border-radius: 10px; background: var(--surface);
+  border: 2px solid var(--border-strong); display: grid; place-content: center; text-align: center; font-size: 34px; font-weight: 700; }
+.diag .ext .ico { width: 70px; height: 70px; margin: 0 auto 10px; color: var(--celeste); }
+.diag .cable { position: absolute; left: 280px; right: 280px; top: 113px; height: 5px; background: var(--ok); border-radius: 3px; }
+.diag .corte { position: absolute; left: 50%; top: 70px; transform: translateX(-50%); color: var(--crit); background: var(--bg);
+  padding: 0 16px; font-size: 28px; font-weight: 800; text-align: center; }
+.diag .corte .ico { width: 56px; height: 56px; display: block; margin: 0 auto 4px; }
+.diag .candado { position: absolute; left: 50%; top: 82px; transform: translateX(-50%); background: var(--bg); padding: 0 14px; color: var(--celeste); }
+.diag .candado .ico { width: 64px; height: 64px; }
+.paquete { position: absolute; top: 92px; left: 290px; padding: 8px 16px; border-radius: 6px; font-size: 26px; font-weight: 700;
+  background: var(--celeste); color: #06202c; white-space: nowrap; font-family: var(--mono); }
+.paquete.ack { background: var(--ok); color: #04210f; }
+.cola { position: absolute; left: 0; top: 222px; width: 260px; display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; }
+.cola i { width: 26px; height: 16px; border-radius: 3px; background: var(--celeste); }
+.abajo { position: absolute; left: 96px; top: 500px; width: 1408px; }
+pre.json { margin: 0 auto; font-size: 22px; line-height: 1.5; column-count: 2; column-gap: 50px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 22px 34px; width: 1408px; font-family: var(--mono); }
+pre.json span { display: block; }
+pre.json .k { color: #8ab4f8; font-style: normal; }
+pre.json .s { color: #f6c177; font-style: normal; }
+pre.json .b { color: #eb6f92; font-style: normal; }
+pre.json .n { color: #9ccfd8; font-style: normal; }
+.tarjetas3 { display: flex; gap: 32px; }
+.tarjetas3 .panel { flex: 1; padding: 34px 38px; font-size: 30px; color: var(--text-2); line-height: 1.3; }
+.tarjetas3 .panel b { display: block; font-size: 40px; color: var(--text); margin-bottom: 8px; line-height: 1.15; }
+.tarjetas3 .ico { width: 56px; height: 56px; color: var(--celeste); margin-bottom: 14px; }
+
+/* Tecnología */
+.pila { position: absolute; left: 96px; top: 250px; width: 1408px; display: flex; align-items: stretch; }
+.pila .capa { flex: 1; min-height: 420px; border-radius: 10px; padding: 40px 34px; background: var(--surface); border: 1px solid var(--border); }
+.pila .capa .q { font-size: 24px; text-transform: uppercase; letter-spacing: 2px; color: var(--text-3); }
+.pila .capa .t { font-size: 56px; font-weight: 800; margin: 12px 0 16px; color: var(--celeste); line-height: 1.05; }
+.pila .capa .d { font-size: 30px; line-height: 1.35; color: var(--text-2); }
+.pila .sig { align-self: center; width: 56px; flex: none; text-align: center; font-size: 44px; color: var(--text-3); }
+
+/* Negocio: barras */
+.fila-barra { position: absolute; left: 96px; width: 1408px; }
+.fila-barra .et { font-size: 36px; margin-bottom: 16px; display: flex; align-items: baseline; gap: 22px; }
+.fila-barra .et > b { font-size: 48px; font-variant-numeric: tabular-nums; }
+.barra { height: 90px; border-radius: 8px; transform-origin: left; }
+.barra.roja { background: var(--crit); }
+.barra.celeste { background: var(--celeste); }
+.resultado { position: absolute; left: 96px; width: 1408px; font-size: 80px; font-weight: 800; letter-spacing: -1px; }
+.resultado b { color: var(--celeste); }
+#d-caba .izq { position: absolute; left: 96px; top: 200px; width: 620px; height: 670px; }
+#d-gbatotal .izq { position: absolute; left: 60px; top: 180px; width: 720px; height: 700px; }
+#d-gbatotal .der { position: absolute; left: 820px; top: 300px; width: 690px; }
+#d-gbatotal .cuenta { font-size: 44px; color: var(--text-2); }
+#d-gbatotal .total { font-size: 86px; font-weight: 800; color: var(--celeste); letter-spacing: -3px; line-height: 1.05; margin-top: 14px; }
+#d-caba .der { position: absolute; left: 820px; top: 280px; width: 690px; }
+#d-caba .cuenta { font-size: 44px; color: var(--text-2); }
+#d-caba .total { font-size: 92px; font-weight: 800; color: var(--celeste); letter-spacing: -3px; line-height: 1.05; margin-top: 14px; }
+#d-caba .total small { display: block; font-size: 44px; color: var(--text); letter-spacing: 0; font-weight: 600; }
+.modelo { position: absolute; left: 96px; top: 210px; width: 1408px; display: flex; gap: 36px; }
+.modelo .panel { flex: 1; padding: 32px 44px; font-size: 30px; color: var(--text-2); line-height: 1.3; }
+.modelo .panel b { display: block; font-size: 44px; color: var(--text); margin-bottom: 6px; }
+.modelo .precio { font-size: 68px; font-weight: 800; color: var(--celeste); margin: 14px 0 6px; letter-spacing: -1px; }
+.clientes { position: absolute; left: 96px; top: 600px; width: 1408px; display: flex; gap: 48px; }
+.grupo-cli { flex: 1.55; }
+.grupo-int { flex: 1; }
+.clientes .t { font-size: 26px; color: var(--text-3); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 14px; }
+.clientes .chip { font-size: 27px; padding: 12px 24px; margin: 0 12px 12px 0; }
+.chip { display: inline-block; padding: 16px 30px; border-radius: 999px; border: 1px solid var(--border-strong);
+  font-size: 32px; margin: 0 14px 14px 0; background: var(--surface); }
+.chip.int { border-color: rgba(79, 195, 247, .45); color: var(--celeste); }
+
+/* Cierre */
+#d-fin { display: grid; grid-template-columns: auto auto; place-content: center; gap: 90px; align-items: center; }
+#d-fin img.qr { width: 470px; border-radius: 12px; background: #fff; padding: 16px; }
+#d-fin h2 { font-size: 80px; }
+#d-fin .url { display: inline-block; font-size: 52px; color: var(--celeste); margin-top: 22px; font-weight: 700; text-decoration: none; pointer-events: none; }
+#d-fin .url:hover { text-decoration: underline; }
+
+/* ================= Capa del 3D (hardware) ================= */
+#titulo { position: fixed; inset: 0; display: grid; place-content: center; text-align: center; pointer-events: none; opacity: 0; }
+#titulo h1 { font-size: calc(96 * var(--u)); margin: 0; }
+#titulo p { font-size: calc(38 * var(--u)); color: var(--text-2); margin: calc(14 * var(--u)) 0 0; }
+#seccion { position: fixed; left: calc(60 * var(--u)); top: calc(48 * var(--u)); font-size: calc(24 * var(--u));
+  color: var(--celeste); letter-spacing: 3px; text-transform: uppercase; font-weight: 600; opacity: 0; }
+.tarjeta { position: fixed; right: calc(56 * var(--u)); top: 50%; width: calc(560 * var(--u)); transform: translateY(-50%);
+  background: rgba(20, 23, 27, .92); border: 1px solid var(--border); border-radius: 8px;
+  padding: calc(38 * var(--u)) calc(42 * var(--u)); opacity: 0; pointer-events: none; }
+.tarjeta h2 { margin: 0 0 calc(8 * var(--u)); font-size: calc(46 * var(--u)); line-height: 1.1; }
+.tarjeta .sub { color: var(--text-2); font-size: calc(28 * var(--u)); margin: 0 0 calc(20 * var(--u)); }
+.tarjeta ul { margin: 0 0 calc(20 * var(--u)); padding-left: calc(30 * var(--u)); font-size: calc(31 * var(--u)); line-height: 1.4; }
+.tarjeta .precio { font-size: calc(60 * var(--u)); font-weight: 800; color: var(--celeste); }
+.tarjeta table { width: 100%; font-size: calc(30 * var(--u)); border-collapse: collapse; margin-bottom: calc(10 * var(--u)); }
+.tarjeta td { padding: calc(10 * var(--u)) 0; border-bottom: 1px solid var(--border); }
+.tarjeta td:last-child { text-align: right; color: var(--celeste); font-weight: 700; white-space: nowrap; padding-left: calc(16 * var(--u)); }
+#total { position: fixed; left: calc(60 * var(--u)); bottom: calc(50 * var(--u)); background: rgba(20, 23, 27, .92);
+  border-radius: 8px; padding: calc(18 * var(--u)) calc(28 * var(--u)); border: 1px solid var(--border); opacity: 0; }
+#total .etq { font-size: calc(22 * var(--u)); color: var(--text-2); text-transform: uppercase; letter-spacing: 2px; }
+#total .num { font-size: calc(58 * var(--u)); font-weight: 800; color: var(--celeste); font-variant-numeric: tabular-nums; }
+#mini { position: fixed; left: calc(60 * var(--u)); bottom: calc(50 * var(--u)); background: rgba(20, 23, 27, .92);
+  border-radius: 8px; border: 1px solid var(--border); padding: calc(18 * var(--u)) calc(26 * var(--u));
+  display: flex; align-items: center; gap: calc(16 * var(--u)); opacity: 0; }
+#mini span { font-size: calc(22 * var(--u)); color: var(--text-2); text-transform: uppercase; letter-spacing: 2px; margin-right: calc(6 * var(--u)); }
+#mini i { width: calc(40 * var(--u)); height: calc(40 * var(--u)); border-radius: 50%; opacity: .18; }
+#mini .r { background: var(--crit); box-shadow: 0 0 calc(20 * var(--u)) var(--crit); }
+#mini .a { background: var(--warn); box-shadow: 0 0 calc(20 * var(--u)) var(--warn); }
+#mini .v { background: var(--ok); box-shadow: 0 0 calc(20 * var(--u)) var(--ok); }
+#progreso { position: fixed; left: 0; bottom: 0; height: calc(5 * var(--u)); width: 100%; background: rgba(255, 255, 255, .05); }
+#progreso i { display: block; height: 100%; width: 0; background: var(--celeste); transition: width .5s; }
+
+#d-conurbano .foto { height: 330px; margin-top: 30px; }
+
+.fuente-link { position: absolute; left: 96px; top: 812px; width: 1408px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 18px; color: var(--text-3); text-decoration: none; pointer-events: auto; }
+.fuente-link:hover { color: var(--celeste); text-decoration: underline; }
+
+/* Fuentes: links chiquitos abajo de cada dato */
+.fuentes { position: absolute; left: 96px; width: 1408px; display: flex; gap: 40px; }
+.fuentes a { flex: 1; min-width: 0; font-size: 17px; color: var(--text-3); text-decoration: none; pointer-events: auto;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fuentes a:hover { color: var(--celeste); text-decoration: underline; }
+/* Alertas meteorológicas */
+.dos-col.alertas .panel p { margin-bottom: 18px; }
+.cifras { display: flex; gap: 40px; }
+.cifras div { font-size: 28px; color: var(--text-2); }
+.cifras b { display: block; font-size: 88px; font-weight: 800; color: var(--celeste); line-height: 1; letter-spacing: -2px; }
+
+/* Los recuadros del 3D no reciben clics (si no, tapan los links de las diapositivas) */
+#total, #mini, #seccion, #titulo, .tarjeta { pointer-events: none; }
+
+/* Aclaración chiquita del precio con pantalla y semáforo */
+.nota-precio { font-size: 24px; color: var(--text-2); margin-top: 18px; line-height: 1.3; }
+#d-muerte .nota-precio { position: absolute; margin: 0; }
+.modelo .nota-precio { font-size: 22px; color: var(--text-3); margin-top: 14px; }
