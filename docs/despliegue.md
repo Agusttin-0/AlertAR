@@ -59,6 +59,8 @@ Comprobar después: `/health` responde 200, `/login` carga, un `POST /api/evento
 
 Para uso real se despliega `main`. Para presentaciones se puede desplegar `demo`, que además guarda y muestra la clave de cada dispositivo. Al volver a `main`, vaciar esa copia con `UPDATE tuneles SET clave_demo = NULL`.
 
+El dashboard público `https://alertar.pages.dev` es la demo: corre la rama `demo` y Cloudflare Pages hace de proxy hacia el servidor publicado con Funnel. Su configuración está en `deploy/cloudflare/` de esa rama, no en `main`.
+
 ## Capacidad medida
 
 Con 252.000 eventos (14 días de tres pasos), una prueba de 60 s con 20 paneles abiertos y 10 ESP32 enviando su cola a 1 evento/s no tuvo rechazos: monitoreo con mediana de 6 ms, estado de los pasos 74 ms, estadísticas 51 ms (p95 0,9 s sin caché) e ingesta 4 ms. El servicio usó como máximo 137 MB.
