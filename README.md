@@ -69,6 +69,6 @@ Los cambios entran a `main` por pull request y después se integran en `demo`, n
 
 ## Pruebas y controles
 
-- `tests/`: lógica de estados (2.700 combinaciones), cola y protocolo del firmware, en C++.
-- `backend/tests/`: 48 pruebas de API, panel, autenticación, estadísticas, exportación, borrado y límites de ritmo. Se ejecutan desde `backend/` con `.venv/bin/python -m unittest discover -s tests`; instalación local en [backend/README.md](backend/README.md).
+- `tests/`: lógica de estados (2.700 combinaciones), cola y protocolo del firmware, en C++. Cómo compilarlas y ejecutarlas en [docs/firmware.md](docs/firmware.md#pruebas).
+- `backend/tests/`: 56 pruebas de API, panel, autenticación, estadísticas, exportación, borrado y límites de ritmo. Se ejecutan desde `backend/` con `.venv/bin/python -m unittest discover -s tests`; instalación local en [backend/README.md](backend/README.md).
 - `scripts/verificar_secretos.sh` y GitHub Actions impiden subir claves, bases de datos o binarios.
