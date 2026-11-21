@@ -41,7 +41,7 @@ El ESP32 decide la seguridad por su cuenta: si se corta Internet, el semáforo s
 
 1. Abrir la carpeta `AlertAR-2` en Visual Studio Code (extensiones PlatformIO IDE y Wokwi Simulator).
 2. Copiar `include/conectividad_secrets.example.h` como `include/conectividad_secrets.h`.
-3. Para probar solo sensores, LEDs y LCD, dejar `ALERTAR_CONECTIVIDAD_HABILITADA` en `false`. Para enviar al servidor, ponerlo en `true`, completar la clave del paso y su `dispositivo_id` en la URL de reserva, y ajustar `DISPOSITIVO` y `PASO` en `src/conectividad_config.h`.
+3. Para probar solo sensores, LEDs y LCD, dejar `ALERTAR_CONECTIVIDAD_HABILITADA` en `false`. Para enviar al servidor, ponerlo en `true`, poner la dirección del servidor en las dos URL, completar la clave del paso y su `dispositivo_id` en la URL de reserva, y ajustar `DISPOSITIVO` y `PASO` en `src/conectividad_config.h`.
 4. **PlatformIO: Build** y luego **Wokwi: Start Simulator**. Wokwi no recompila: después de cada cambio hay que volver a compilar.
 
 En el simulador se mueven los objetos frente a los sensores y el control del agua; el monitor serie muestra el estado y el diagnóstico de la conexión.
