@@ -88,4 +88,19 @@ Durante los primeros **2 s** de `loop()` (contados desde el primer ciclo, despu�
 
 ## Pruebas
 
-`tests/logica_test.cpp` recorre 2.700 combinaciones de lecturas y tiempos y comprueba el código que corresponde a cada una según la tabla. Se compila y ejecuta en la computadora, sin placa.
+Las pruebas de `tests/` se compilan y ejecutan en la computadora, sin placa:
+
+- `logica_test.cpp` recorre 2.700 combinaciones de lecturas y tiempos y comprueba el código que corresponde a cada una según la tabla.
+- `registro_test.cpp` prueba la cola de eventos en disco, incluidas fallas de escritura y de renombrado.
+- `protocolo_test.cpp` arma eventos con el serializador real del firmware. Necesita ArduinoJson, que PlatformIO descarga la primera vez que se compila el firmware (`pio run` en `AlertAR-2/`).
+
+Desde la raíz del repositorio (los binarios quedan en `verificaciones/`, que no se sube a Git):
+
+```bash
+mkdir -p verificaciones
+c++ -std=c++17 -Wall -o verificaciones/logica_test tests/logica_test.cpp && verificaciones/logica_test
+c++ -std=c++17 -Wall -o verificaciones/registro_test tests/registro_test.cpp && verificaciones/registro_test
+c++ -std=c++17 -Wall -I AlertAR-2/.pio/libdeps/esp32dev/ArduinoJson/src -o verificaciones/protocolo_test tests/protocolo_test.cpp && verificaciones/protocolo_test
+```
+
+Con `verificaciones/protocolo_test` compilado, la prueba `test_firmware_contract` del backend valida su salida contra la API. Si el binario no está, esa prueba se saltea.

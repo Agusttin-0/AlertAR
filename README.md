@@ -3,7 +3,7 @@
 AlertAR es un prototipo de ciudad inteligente para supervisar **pasos bajo nivel** (túneles por debajo de las vías del tren). En cada paso, un ESP32 mide si hay obstrucciones en los dos carriles y si se acumula agua, decide localmente si el paso está habilitado y lo indica con un semáforo y una pantalla. Además envía cada medición a un servidor, donde un panel web muestra en vivo el estado de todos los pasos, su historial, estadísticas y un mapa de la ciudad.
 
 **Presentación:** https://alertar-presentacion.pages.dev  
-**Dashboard:** https://alertar.pages.dev
+**Dashboard (demo):** https://alertar.pages.dev
 
 **Repositorio:** [Agusttin-0/AlertAR](https://github.com/Agusttin-0/AlertAR)
 
@@ -41,7 +41,7 @@ El ESP32 decide la seguridad por su cuenta: si se corta Internet, el semáforo s
 
 1. Abrir la carpeta `AlertAR-2` en Visual Studio Code (extensiones PlatformIO IDE y Wokwi Simulator).
 2. Copiar `include/conectividad_secrets.example.h` como `include/conectividad_secrets.h`.
-3. Para probar solo sensores, LEDs y LCD, dejar `ALERTAR_CONECTIVIDAD_HABILITADA` en `false`. Para enviar al servidor, ponerlo en `true`, completar la clave del paso y su `dispositivo_id` en la URL de reserva, y ajustar `DISPOSITIVO` y `PASO` en `src/conectividad_config.h`.
+3. Para probar solo sensores, LEDs y LCD, dejar `ALERTAR_CONECTIVIDAD_HABILITADA` en `false`. Para enviar al servidor, ponerlo en `true`, poner la dirección del servidor en las dos URL, completar la clave del paso y su `dispositivo_id` en la URL de reserva, y ajustar `DISPOSITIVO` y `PASO` en `src/conectividad_config.h`.
 4. **PlatformIO: Build** y luego **Wokwi: Start Simulator**. Wokwi no recompila: después de cada cambio hay que volver a compilar.
 
 En el simulador se mueven los objetos frente a los sensores y el control del agua; el monitor serie muestra el estado y el diagnóstico de la conexión.
@@ -69,6 +69,6 @@ Los cambios entran a `main` por pull request y después se integran en `demo`, n
 
 ## Pruebas y controles
 
-- `tests/`: lógica de estados (2.700 combinaciones), cola y protocolo del firmware, en C++.
-- `backend/tests/`: 48 pruebas de API, panel, autenticación, estadísticas, exportación, borrado y límites de ritmo. Se ejecutan desde `backend/` con `.venv/bin/python -m unittest discover -s tests`; instalación local en [backend/README.md](backend/README.md).
+- `tests/`: lógica de estados (2.700 combinaciones), cola y protocolo del firmware, en C++. Cómo compilarlas y ejecutarlas en [docs/firmware.md](docs/firmware.md#pruebas).
+- `backend/tests/`: 56 pruebas de API, panel, autenticación, estadísticas, exportación, borrado y límites de ritmo. Se ejecutan desde `backend/` con `.venv/bin/python -m unittest discover -s tests`; instalación local en [backend/README.md](backend/README.md).
 - `scripts/verificar_secretos.sh` y GitHub Actions impiden subir claves, bases de datos o binarios.

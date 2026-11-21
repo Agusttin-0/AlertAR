@@ -51,13 +51,15 @@ El backend no tiene la dirección del servidor escrita en el código: el panel u
 5. **Capacidad.** Ajustar `--threads`, `MemoryMax`, `CPUQuota` y, si hace falta, `ALERTAR_CONCURRENCIA` y `ALERTAR_LIMITE_*` al hardware. Para un equipo chico, usar los valores de `deploy/raspi/limites.conf`.
 6. **Datos.** Para mudar los datos, copiar la base con la API de respaldo de SQLite (por ejemplo `sqlite3 origen.sqlite3 ".backup destino.sqlite3"`) con el servicio detenido o en un momento sin escrituras. Las claves de dispositivo viajan dentro de la base como hash, así que los ESP32 siguen autenticando sin cambiar su clave.
 7. **Firmware de cada ESP32.** En `conectividad_secrets.h` cambiar `ALERTAR_API_URL` y `ALERTAR_RESERVA_API_URL` a la dirección nueva (con su puerto) y volver a compilar. `src/certificado.h` contiene las raíces **Root YE** e **ISRG Root X2** de Let's Encrypt, que usan los certificados de Tailscale; si el servidor nuevo usa otra autoridad certificante, reemplazarla por la raíz que corresponda. Nunca desactivar la validación del certificado.
-8. **Documentación.** Actualizar la URL publicada en el README y en la plantilla `conectividad_secrets.example.h`.
+8. **Documentación.** Si cambia la dirección pública del panel, actualizar el link del README. La plantilla `conectividad_secrets.example.h` no lleva la dirección real del servidor.
 
 Comprobar después: `/health` responde 200, `/login` carga, un `POST /api/eventos` sin clave devuelve 401 y un ESP32 aparece en vivo en el panel.
 
 ## Rama a desplegar
 
 Para uso real se despliega `main`. Para presentaciones se puede desplegar `demo`, que además guarda y muestra la clave de cada dispositivo. Al volver a `main`, vaciar esa copia con `UPDATE tuneles SET clave_demo = NULL`.
+
+El dashboard público `https://alertar.pages.dev` es la demo: corre la rama `demo` y Cloudflare Pages hace de proxy hacia el servidor publicado con Funnel. Su configuración está en `deploy/cloudflare/` de esa rama, no en `main`.
 
 ## Capacidad medida
 
